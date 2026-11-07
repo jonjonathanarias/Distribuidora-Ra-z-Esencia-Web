@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Pedidos Agrupados | Admin</title>
+    <title>Gestión y Ajuste de Pedidos | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="js/config.js"></script>
@@ -13,17 +13,25 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="dashboard.html">← Volver al Dashboard</a>
-        <span class="text-white small">Panel de Control - Pedidos Agrupados por Red</span>
+        <span class="text-white small">Panel de Control - Auditoría y Ajuste de Pedidos</span>
     </div>
 </nav>
 
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold text-primary mb-0">Consolidado de Pedidos por Experta / Líder</h4>
-        <span class="badge bg-secondary fs-6" x-text="'Total Expertas con Pedidos: ' + Object.keys(pedidosAgrupados).length"></span>
+        <span class="badge bg-secondary fs-6" x-text="'Total Expertas: ' + Object.keys(pedidosAgrupados).length"></span>
     </div>
 
-    <!-- Iterar sobre cada experta agrupada -->
+    <!-- Alertas de éxito o error -->
+    <template x-if="mensajeAlerta">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <span x-text="mensajeAlerta"></span>
+            <button type="button" class="btn-close" @click="mensajeAlerta = ''"></button>
+        </div>
+    </template>
+
+    <!-- Listado agrupado por experta -->
     <div class="row g-4">
         <template x-for="(grupo, expertoId) in pedidosAgrupados" :key="expertoId">
             <div class="col-12">
@@ -31,10 +39,10 @@
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="fw-bold mb-0 text-dark" x-text="grupo.nombre"></h5>
-                            <span class="badge bg-light text-secondary border mt-1" x-text="'Código: ' + grupo.codigo_integrante"></span>
+                            <span class="badge bg-light text-secondary border mt-1" x-text="'Código: ' + (grupo.codigo_integrante || 'Sin Código')"></span>
                             <span class="badge bg-info text-dark mt-1" x-text="'Marca: ' + grupo.marca_trabaja"></span>
                         </div>
-                        <span class="badge bg-primary fs-6 px-3 py-2" x-text="grupo.pedidos.length + ' pedido(s) activo(s)'"></span>
+                        <span class="badge bg-primary fs-6 px-3 py-2" x-text="grupo.pedidos.length + ' pedido(s)'"></span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -65,7 +73,7 @@
                                             </td>
                                             <td class="small text-muted" x-text="p.fecha_limite"></td>
                                             <td class="text-end">
-                                                <button class="btn btn-outline-primary btn-sm" @click="verDetalle(p)">Ver Productos</button>
+                                                <button class="btn btn-outline-primary btn-sm" @click="abrirModal(p)">Auditar / Ajustar</button>
                                             </td>
                                         </tr>
                                     </template>
@@ -79,35 +87,66 @@
     </div>
 </div>
 
-<!-- Modal para ver el detalle de los productos del pedido -->
+<!-- Modal para Auditoría y Ajuste de Faltantes -->
 <div class="modal fade" id="modalDetalle" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content" x-show="pedidoSeleccionado">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Detalle del Pedido #<span x-text="pedidoSeleccionado?.pedido_id"></span></h5>
+                <h5 class="modal-title">Auditar Pedido #<span x-text="pedidoSeleccionado?.pedido_id"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p><strong>Experta:</strong> <span x-text="pedidoSeleccionado?.experto.nombre"></span> (<span x-text="pedidoSeleccionado?.experto.codigo_integrante"></span>)</p>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Experta:</strong> <span x-text="pedidoSeleccionado?.experto.nombre"></span></p>
+                        <p class="mb-0"><strong>Código:</strong> <span x-text="pedidoSeleccionado?.experto.codigo_integrante"></span></p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="mb-1"><strong>Empresa:</strong> <span class="badge bg-info text-dark" x-text="pedidoSeleccionado?.empresa"></span></p>
+                        <p class="mb-0"><strong>Estado Actual:</strong> <span class="badge bg-secondary" x-text="pedidoSeleccionado?.estado"></span></p>
+                    </div>
+                </div>
                 <hr>
-                <h6 class="fw-bold">Productos Solicitados:</h6>
-                <ul class="list-group list-group-flush">
-                    <template x-for="item in pedidoSeleccionado?.detalles">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="fw-semibold" x-text="item.nombre_producto"></span>
-                                <div class="small text-muted" x-text="'SKU: ' + item.codigo_sku"></div>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge bg-primary rounded-pill" x-text="'Cant: ' + item.cantidad_pedida"></span>
-                                <div class="small fw-bold text-success mt-1" x-text="'$' + (item.precio_unitario * item.cantidad_pedida).toFixed(2)"></div>
-                            </div>
-                        </li>
-                    </template>
-                </ul>
+                <h6 class="fw-bold mb-3">Productos Solicitados y Control de Entrega:</h6>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Producto / SKU</th>
+                                <th class="text-center" style="width: 130px;">Cant. Pedida</th>
+                                <th class="text-center" style="width: 150px;">Cant. a Entregar</th>
+                                <th class="text-end">Precio Unit.</th>
+                                <th class="text-end">Subtotal Real</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in itemsAjuste" :key="item.detalle_id">
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold" x-text="item.nombre_producto"></div>
+                                        <div class="small text-muted" x-text="'SKU: ' + item.codigo_sku"></div>
+                                    </td>
+                                    <td class="text-center fw-bold" x-text="item.cantidad_pedida"></td>
+                                    <td class="text-center">
+                                        <input type="number" class="form-control form-control-sm text-center" 
+                                               x-model.number="item.cantidad_entregada" 
+                                               min="0" :max="item.cantidad_pedida">
+                                    </td>
+                                    <td class="text-end" x-text="'$' + item.precio_unitario.toFixed(2)"></td>
+                                    <td class="text-end fw-bold text-success" x-text="'$' + (item.precio_unitario * item.cantidad_entregada).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success btn-sm fw-semibold" @click="guardarAjuste()" :disabled="guardando">
+                    <span x-show="!guardando">Guardar Ajustes y Descontar Stock</span>
+                    <span x-show="guardando" class="spinner-border spinner-border-sm"></span>
+                </button>
             </div>
         </div>
     </div>
@@ -119,6 +158,10 @@ function pedidosApp() {
     return {
         pedidosAgrupados: {},
         pedidoSeleccionado: null,
+        itemsAjuste: [],
+        mensajeAlerta: '',
+        guardando: false,
+        modalInstance: null,
         init() {
             verificarSesion();
             this.cargarPedidos();
@@ -130,7 +173,6 @@ function pedidosApp() {
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    // Agrupar automáticamente por ID de experta
                     const agrupados = {};
                     (data.pedidos || []).forEach(p => {
                         const expId = p.experto.id || 'desconocido';
@@ -150,10 +192,42 @@ function pedidosApp() {
                 console.error("Error al cargar pedidos:", err);
             }
         },
-        verDetalle(pedido) {
+        abrirModal(pedido) {
             this.pedidoSeleccionado = pedido;
-            const modal = new bootstrap.Modal(document.getElementById('modalDetalle'));
-            modal.show();
+            // Clonar los detalles para permitir edición local en los inputs
+            this.itemsAjuste = JSON.parse(JSON.stringify(pedido.detalles));
+            
+            const el = document.getElementById('modalDetalle');
+            this.modalInstance = new bootstrap.Modal(el);
+            this.modalInstance.show();
+        },
+        async guardarAjuste() {
+            this.guardando = true;
+            try {
+                const payload = {
+                    items: this.itemsAjuste.map(i => ({
+                        detalle_id: i.detalle_id,
+                        cantidad_entregada: parseInt(i.cantidad_entregada) || 0
+                    }))
+                };
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${this.pedidoSeleccionado.pedido_id}/ajustar`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al ajustar el pedido');
+
+                this.mensajeAlerta = `¡Pedido #${this.pedidoSeleccionado.pedido_id} ajustado con éxito! Stock descontado.`;
+                this.modalInstance.hide();
+                this.cargarPedidos(); // Recargar grilla
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                this.guardando = false;
+            }
         }
     }
 }
