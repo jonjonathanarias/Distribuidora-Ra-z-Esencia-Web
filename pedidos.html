@@ -18,9 +18,18 @@
 </nav>
 
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold text-primary mb-0">Consolidado de Pedidos por Experta / Líder</h4>
-        <span class="badge bg-secondary fs-6" x-text="'Total Expertas: ' + Object.keys(pedidosAgrupados).length"></span>
+    <div class="row align-items-center mb-4 g-3">
+        <div class="col-md-6">
+            <h4 class="fw-bold text-primary mb-0">Consolidado de Pedidos por Red</h4>
+        </div>
+        <!-- Buscador de pedidos por nombre -->
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-white">🔍</span>
+                <input type="text" class="form-control" placeholder="Buscar por nombre de experta o líder..." x-model="filtroNombre">
+                <button class="btn btn-outline-secondary" type="button" x-show="filtroNombre" @click="filtroNombre = ''">Limpiar</button>
+            </div>
+        </div>
     </div>
 
     <!-- Alertas de éxito o error -->
@@ -31,9 +40,9 @@
         </div>
     </template>
 
-    <!-- Listado agrupado por experta -->
+    <!-- Listado agrupado y filtrado por experta -->
     <div class="row g-4">
-        <template x-for="(grupo, expertoId) in pedidosAgrupados" :key="expertoId">
+        <template x-for="(grupo, expertoId) in pedidosFiltrados" :key="expertoId">
             <div class="col-12">
                 <div class="card shadow-sm border-0 border-start border-4 border-primary">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
@@ -82,6 +91,13 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </template>
+
+        <!-- Mensaje si no hay resultados -->
+        <template x-if="Object.keys(pedidosFiltrados).length === 0">
+            <div class="col-12 text-center py-5 text-muted">
+                <h5>No se encontraron pedidos que coincidan con la búsqueda.</h5>
             </div>
         </template>
     </div>
@@ -157,6 +173,7 @@
 function pedidosApp() {
     return {
         pedidosAgrupados: {},
+        filtroNombre: '',
         pedidoSeleccionado: null,
         itemsAjuste: [],
         mensajeAlerta: '',
@@ -192,11 +209,23 @@ function pedidosApp() {
                 console.error("Error al cargar pedidos:", err);
             }
         },
+        // Propiedad computada en Alpine para filtrar los grupos por nombre
+        get pedidosFiltrados() {
+            if (!this.filtroNombre) return this.pedidosAgrupados;
+            const filtrados = {};
+            const query = this.filtroNombre.toLowerCase();
+            
+            Object.keys(this.pedidosAgrupados).forEach(id => {
+                const grupo = this.pedidosAgrupados[id];
+                if (grupo.nombre.toLowerCase().includes(query) || (grupo.codigo_integrante && grupo.codigo_integrante.toLowerCase().includes(query))) {
+                    filtrados[id] = grupo;
+                }
+            });
+            return filtrados;
+        },
         abrirModal(pedido) {
             this.pedidoSeleccionado = pedido;
-            // Clonar los detalles para permitir edición local en los inputs
             this.itemsAjuste = JSON.parse(JSON.stringify(pedido.detalles));
-            
             const el = document.getElementById('modalDetalle');
             this.modalInstance = new bootstrap.Modal(el);
             this.modalInstance.show();
@@ -222,7 +251,7 @@ function pedidosApp() {
 
                 this.mensajeAlerta = `¡Pedido #${this.pedidoSeleccionado.pedido_id} ajustado con éxito! Stock descontado.`;
                 this.modalInstance.hide();
-                this.cargarPedidos(); // Recargar grilla
+                this.cargarPedidos();
             } catch (err) {
                 alert(`Error: ${err.message}`);
             } finally {
