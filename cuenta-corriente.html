@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuenta Corriente | Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="js/config.js"></script>
+</head>
+<body class="bg-light" x-data="ccApp()" x-init="init()">
+
+<nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="dashboard.html">← Volver al Dashboard</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - Experto ID: <span x-text="expertoId"></span></h5>
+            <div class="d-flex gap-2">
+                <input type="number" class="form-control form-control-sm" style="width: 100px;" x-model="expertoId">
+                <button class="btn btn-primary btn-sm" @click="cargarCuenta()">Buscar</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-end">Saldo Resultante</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="mov in movimientos" :key="mov.id">
+                            <tr>
+                                <td class="small text-muted" x-text="mov.fecha"></td>
+                                <td>
+                                    <span class="badge" 
+                                          :class="{
+                                              'bg-danger': mov.tipo_movimiento === 'deuda_factura',
+                                              'bg-success': mov.tipo_movimiento === 'pago_recibido',
+                                              'bg-info text-dark': mov.tipo_movimiento === 'comision_liderazgo',
+                                              'bg-warning text-dark': mov.tipo_movimiento === 'ajuste_manual'
+                                          }" x-text="mov.tipo_movimiento"></span>
+                                </td>
+                                <td class="small fw-semibold" x-text="mov.descripcion"></td>
+                                <td class="text-end fw-bold" :class="mov.monto > 0 ? 'text-success' : 'text-danger'" x-text="'$' + mov.monto.toFixed(2)"></td>
+                                <td class="text-end fw-bold" x-text="'$' + mov.saldo_resultante.toFixed(2)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function ccApp() {
+    return {
+        expertoId: 4,
+        movimientos: [],
+        init() {
+            verificarSesion();
+            this.cargarCuenta();
+        },
+        async cargarCuenta() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/${this.expertoId}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.movimientos = data.historial || [];
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    }
+}
+</script>
+</body>
+</html>
