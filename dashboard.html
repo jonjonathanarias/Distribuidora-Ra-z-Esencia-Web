@@ -238,7 +238,7 @@ function dashboardApp() {
 
             try {
                 const headers = getAuthHeaders();
-                delete headers['Content-Type']; // Permite que fetch configure el multipart boundary automáticamente
+                delete headers['Content-Type'];
 
                 const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/${this.empresaSeleccionadaId}/importar-productos`, {
                     method: 'POST',
@@ -249,7 +249,8 @@ function dashboardApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo Excel');
 
-                this.mensajeAlerta = `¡Éxito! ${data.message} (Nuevos: ${data.productos_nuevos}, Actualizados: ${data.productos_actualizados})`;
+                // Mensaje detallado según los resultados
+                this.mensajeAlerta = `📊 Excel procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
             } catch (err) {
                 this.mensajeError = err.message;
@@ -288,7 +289,8 @@ function dashboardApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo PDF');
 
-                this.mensajeAlerta = `¡Éxito! ${data.message} (Nuevos: ${data.productos_nuevos}, Actualizados: ${data.productos_actualizados})`;
+                // Mensaje detallado según los resultados
+                this.mensajeAlerta = `📄 PDF procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
             } catch (err) {
                 this.mensajeError = err.message;
