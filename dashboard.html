@@ -252,7 +252,7 @@ function dashboardApp() {
         resultado: null,
         empresas: [],
         empresaSeleccionadaId: '',
-        empresaFiltroStock: '', // Nuevo filtro de empresa para la tabla de stock
+        empresaFiltroStock: '',
         productosStock: [],
         busquedaStock: '',
         cargandoExcel: false,
@@ -296,13 +296,11 @@ function dashboardApp() {
         get productosFiltradosStock() {
             let resultado = this.productosStock;
 
-            // 1. Filtrar por empresa seleccionada si hay una elegida
             if (this.empresaFiltroStock !== '' && this.empresaFiltroStock !== null) {
                 const idEmpresaNum = parseInt(this.empresaFiltroStock);
                 resultado = resultado.filter(p => p.empresa_id === idEmpresaNum);
             }
 
-            // 2. Filtrar por texto de búsqueda (Nombre o SKU)
             if (this.busquedaStock) {
                 const termino = this.busquedaStock.toLowerCase();
                 resultado = resultado.filter(p => 
@@ -399,7 +397,7 @@ function dashboardApp() {
         },
         async importarPdf() {
             if (!this.empresaSeleccionadaId) {
-                this.mensajeError = "Por favor, seleccione una empresa.";
+                this.mensajeError = "Por_favor, seleccione una empresa.";
                 return;
             }
             const fileInput = document.getElementById('filePdf');
