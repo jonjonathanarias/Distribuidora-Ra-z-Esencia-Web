@@ -128,7 +128,6 @@
         </div>
     </div>
 
-    
     <!-- VISTA 2: CARGAR NUEVO PEDIDO -->
     <div x-show="vistaActiva === 'nuevo_pedido'" style="display: none;" :style="vistaActiva === 'nuevo_pedido' ? 'display: block;' : 'display: none;'" class="card shadow-sm border-0 p-4">
         <h4 class="fw-bold text-success mb-3">Armar Nuevo Pedido para la Distribuidora</h4>
@@ -138,11 +137,12 @@
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Empresa / Marca</label>
-                    <!-- Al cambiar de empresa, limpiamos la selección de producto para evitar mezclas -->
-                    <select class="form-select" x-model="nuevoPedido.empresa_id" @change="cambiarEmpresa()" required>
-                        <option value="1">Reino (ID: 1)</option>
-                        <option value="2">Sandra Marzzan (ID: 2)</option>
-                        <!-- Preparado para futuras empresas si se agregan en el futuro -->
+                    <!-- Selector 100% dinámico alimentado por el endpoint /empresas/ -->
+                    <select class="form-select" x-model.number="nuevoPedido.empresa_id" @change="cambiarEmpresa()" required>
+                        <option value="">-- Seleccione una empresa --</option>
+                        <template x-for="emp in empresasDisponibles" :key="emp.id">
+                            <option :value="emp.id" x-text="emp.nombre"></option>
+                        </template>
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -156,7 +156,7 @@
             
             <div class="row g-2 mb-3 align-items-end">
                 <div class="col-md-8">
-                    <label class="form-label small" x-text="'Buscar Producto en Catálogo (' + (nuevoPedido.empresa_id == '1' ? 'Reino' : 'Sandra Marzzan') + ')'"></label>
+                    <label class="form-label small" x-text="'Buscar Producto en Catálogo (' + obtenerNombreEmpresaSeleccionada() + ')'"></label>
                     <select class="form-select" x-model.number="productoSeleccionadoId">
                         <option value="">-- Seleccione un producto --</option>
                         <!-- Filtramos en tiempo real según el empresa_id seleccionado -->
@@ -225,13 +225,14 @@ function expertoDashboardApp() {
         vistaActiva: 'mis_pedidos',
         pedidos: [],
         productosDisponibles: [],
+        empresasDisponibles: [], // Almacena las empresas activas traídas de la API
         productoSeleccionadoId: '',
         cantidadItem: 1,
         mensajeAlerta: '',
         enviando: false,
         nuevoPedido: {
-            empresa_id: '1',      // Usamos el ID numérico por defecto (1 para Reino)
-            empresa: 'reino',     // Texto compatible con el backend actual
+            empresa_id: '',
+            empresa: '',
             fecha_limite: '',
             detalles: []
         },
@@ -243,8 +244,27 @@ function expertoDashboardApp() {
                 try { this.usuario = JSON.parse(usr); } catch(e) { this.usuario = { nombre: 'Experta' }; }
             }
             
+            this.cargarEmpresas();    // Cargamos dinámicamente las empresas del sistema
             this.cargarMisPedidos();
             this.cargarProductos();
+        },
+        async cargarEmpresas() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.empresasDisponibles = data.data || [];
+                    // Si hay empresas disponibles, seleccionamos la primera por defecto
+                    if (this.empresasDisponibles.length > 0) {
+                        this.nuevoPedido.empresa_id = this.empresasDisponibles[0].id;
+                        this.cambiarEmpresa();
+                    }
+                }
+            } catch (err) {
+                console.error("Error al cargar empresas:", err);
+            }
         },
         async cargarMisPedidos() {
             try {
@@ -259,7 +279,6 @@ function expertoDashboardApp() {
         },
         async cargarProductos() {
             try {
-                // Traemos todos los productos activos; el filtrado se hace en el cliente de forma reactiva
                 const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
                     headers: getAuthHeaders()
                 });
@@ -271,14 +290,23 @@ function expertoDashboardApp() {
                 console.error("Error al cargar catálogo:", err);
             }
         },
+        // Obtiene dinámicamente el nombre de la empresa seleccionada para la etiqueta
+        obtenerNombreEmpresaSeleccionada() {
+            const emp = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
+            return emp ? emp.nombre : '';
+        },
         // Propiedad computada: Filtra los productos según el empresa_id seleccionado
         get productosFiltrados() {
             const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
             return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
         },
         cambiarEmpresa() {
-            // Si cambia de empresa, actualizamos el texto y limpiamos el carrito por seguridad
-            this.nuevoPedido.empresa = (this.nuevoPedido.empresa_id == '1') ? 'reino' : 'marzzan';
+            // Extraemos el nombre de la empresa seleccionada para enviarlo en texto plano al backend
+            const empresaObj = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
+            if (empresaObj) {
+                this.nuevoPedido.empresa = empresaObj.nombre.toLowerCase();
+            }
+
             this.productoSeleccionadoId = '';
             if (this.nuevoPedido.detalles.length > 0) {
                 if (confirm('Al cambiar de empresa se limpiarán los productos agregados previamente. ¿Desea continuar?')) {
