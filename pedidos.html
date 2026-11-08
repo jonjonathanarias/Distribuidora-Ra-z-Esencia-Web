@@ -13,7 +13,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="dashboard.html">← Volver al Dashboard</a>
-        <span class="text-white small">Panel de Control - Logística y Auditoría de Faltantes</span>
+        <span class="text-white small">Panel de Control - Logística, Facturación y Faltantes</span>
     </div>
 </nav>
 
@@ -32,19 +32,29 @@
         </div>
     </div>
 
-    <!-- Pestañas de Filtro: Por defecto muestra "Pendientes" para que lo entregado no moleste -->
+    <!-- Pestañas de Filtro Rápido (Incluyendo Facturados, Rechazados y Faltantes Parciales) -->
     <div class="d-flex flex-wrap gap-2 mb-4">
         <button class="btn btn-sm" :class="filtroEstado === 'pendiente' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="filtroEstado = 'pendiente'">
-            ⏳ Pendientes de Revisión
+            ⏳ Pendientes
         </button>
         <button class="btn btn-sm" :class="filtroEstado === 'aprobado' ? 'btn-info text-dark fw-bold shadow-sm' : 'btn-outline-info text-dark'" @click="filtroEstado = 'aprobado'">
-            📋 Aprobados / En Stock
+            📋 Aprobados
+        </button>
+        <button class="btn btn-sm" :class="filtroEstado === 'facturado' ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-primary'" @click="filtroEstado = 'facturado'">
+            📄 Facturados
         </button>
         <button class="btn btn-sm" :class="filtroEstado === 'recibido_faltantes_ajustados' ? 'btn-success fw-bold shadow-sm' : 'btn-outline-success'" @click="filtroEstado = 'recibido_faltantes_ajustados'">
-            ✅ Entregados / Historial Ajustado
+            ✅ Entregados OK
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'todos' ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-primary'" @click="filtroEstado = 'todos'">
-            📂 Ver Historial Completo
+        <!-- Nuevo recuadro para ver pedidos con faltantes o entregas parciales -->
+        <button class="btn btn-sm" :class="filtroEstado === 'con_faltantes' ? 'btn-danger fw-bold shadow-sm' : 'btn-outline-danger'" @click="filtroEstado = 'con_faltantes'">
+            ⚠️ Con Faltantes (Parciales)
+        </button>
+        <button class="btn btn-sm" :class="filtroEstado === 'rechazado' ? 'btn-dark fw-bold shadow-sm' : 'btn-outline-dark'" @click="filtroEstado = 'rechazado'">
+            ❌ Rechazados
+        </button>
+        <button class="btn btn-sm" :class="filtroEstado === 'todos' ? 'btn-secondary fw-bold shadow-sm' : 'btn-outline-secondary'" @click="filtroEstado = 'todos'">
+            📂 Historial Completo
         </button>
     </div>
 
@@ -77,8 +87,9 @@
                                         <th>ID Pedido</th>
                                         <th>Empresa</th>
                                         <th style="width: 250px;">Estado del Ciclo</th>
+                                        <th>Control de Cantidades / Faltantes</th>
                                         <th>Fecha Límite</th>
-                                        <th class="text-end">Acciones / Auditoría</th>
+                                        <th class="text-end">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -89,23 +100,33 @@
                                                 <span class="badge bg-secondary" x-text="p.empresa"></span>
                                             </td>
                                             <td>
-                                                <!-- Selector de estados para aprobar, rechazar, facturar o ajustar -->
                                                 <select class="form-select form-select-sm fw-semibold" 
                                                         x-model="p.estado" 
                                                         @change="cambiarEstado(p.pedido_id, p.estado)"
                                                         :class="{
                                                             'bg-warning text-dark': p.estado === 'pendiente',
                                                             'bg-info text-dark': p.estado === 'aprobado',
-                                                            'bg-success text-white': p.estado === 'recibido_faltantes_ajustados',
                                                             'bg-primary text-white': p.estado === 'facturado',
+                                                            'bg-success text-white': p.estado === 'recibido_faltantes_ajustados',
                                                             'bg-danger text-white': p.estado === 'rechazado'
                                                         }">
                                                     <option value="pendiente">Pendiente</option>
                                                     <option value="aprobado">Aprobado</option>
-                                                    <option value="recibido_faltantes_ajustados">Recibido / Ajustado (Completado)</option>
-                                                    <option value="facturado">Facturado</option>
-                                                    <option value="rechazado">Rechazado</option>
+                                                    <option value="facturado">Facturado 📄</option>
+                                                    <option value="recibido_faltantes_ajustados">Recibido / Ajustado (OK)</option>
+                                                    <option value="rechazado">Rechazado ❌</option>
                                                 </select>
+                                            </td>
+                                            <td>
+                                                <!-- Indicador visual rápido de faltantes si hubo entrega parcial -->
+                                                <template x-if="calcularFaltantesPedido(p) > 0">
+                                                    <span class="badge bg-danger text-white">
+                                                        ⚠️ Faltan <span x-text="calcularFaltantesPedido(p)"></span> un.
+                                                    </span>
+                                                </template>
+                                                <template x-if="calcularFaltantesPedido(p) === 0">
+                                                    <span class="badge bg-success text-white">Completo (0 faltantes)</span>
+                                                </template>
                                             </td>
                                             <td class="small text-muted" x-text="p.fecha_limite"></td>
                                             <td class="text-end">
@@ -125,14 +146,14 @@
 
         <template x-if="Object.keys(pedidosFiltrados).length === 0">
             <div class="col-12 text-center py-5 text-muted bg-white rounded shadow-sm">
-                <h5>🎉 ¡Excelente! No hay pedidos en esta sección.</h5>
-                <p class="small">Los pedidos que ya fueron entregados y ajustados se archivaron automáticamente del panel activo.</p>
+                <h5>🎉 No hay pedidos en esta sección.</h5>
+                <p class="small">Cambie de pestaña superior para consultar los registros facturados, rechazados o históricos.</p>
             </div>
         </template>
     </div>
 </div>
 
-<!-- Modal de Auditoría de Faltantes (Manejo de Solicitado vs Entregado) -->
+<!-- Modal de Auditoría y Control de Faltantes -->
 <div class="modal fade" id="modalDetalle" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content" x-show="pedidoSeleccionado">
@@ -148,7 +169,7 @@
                     </div>
                     <div class="col-md-6 text-md-end">
                         <p class="mb-1"><strong>Empresa:</strong> <span class="badge bg-info text-dark" x-text="pedidoSeleccionado?.empresa"></span></p>
-                        <p class="mb-0 text-muted small">Indique cuántas unidades reales enviará (si hay faltantes en stock, baje la cantidad a entregar).</p>
+                        <p class="mb-0 text-muted small">Ajuste las cantidades a enviar. Si baja la cantidad, el sistema registrará los faltantes automáticamente.</p>
                     </div>
                 </div>
                 
@@ -171,21 +192,15 @@
                                         <div class="fw-semibold" x-text="item.nombre_producto"></div>
                                         <div class="small text-muted" x-text="'SKU: ' + item.codigo_sku"></div>
                                     </td>
-                                    <!-- Cantidad solicitada original -->
                                     <td class="text-center fw-bold fs-6" x-text="item.cantidad_pedida"></td>
-                                    
-                                    <!-- Input editable: La admin define cuánto envía (ej: 6 en vez de 8) -->
                                     <td class="text-center">
                                         <input type="number" class="form-control form-control-sm text-center fw-bold text-success" 
                                                x-model.number="item.cantidad_entregada" 
                                                min="0" :max="item.cantidad_pedida">
                                     </td>
-
-                                    <!-- Cálculo automático en tiempo real del faltante (Pidió - A Enviar) -->
                                     <td class="text-center fw-bold text-danger" 
                                         x-text="Math.max(0, item.cantidad_pedida - item.cantidad_entregada)">
                                     </td>
-
                                     <td class="text-end" x-text="'$' + item.precio_unitario.toFixed(2)"></td>
                                     <td class="text-end fw-bold text-success" x-text="'$' + (item.precio_unitario * item.cantidad_entregada).toFixed(2)"></td>
                                 </tr>
@@ -197,7 +212,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success btn-sm fw-semibold px-4" @click="guardarAjuste()" :disabled="guardando">
-                    <span x-show="!guardando">Confirmar Entrega y Archivar Pedido</span>
+                    <span x-show="!guardando">Confirmar Entrega y Guardar Ajustes</span>
                     <span x-show="guardando" class="spinner-border spinner-border-sm"></span>
                 </button>
             </div>
@@ -211,7 +226,7 @@ function pedidosApp() {
     return {
         pedidosAgrupados: {},
         filtroNombre: '',
-        filtroEstado: 'pendiente', // Por defecto muestra solo pendientes para ocultar los ya entregados
+        filtroEstado: 'pendiente',
         pedidoSeleccionado: null,
         itemsAjuste: [],
         mensajeAlerta: '',
@@ -247,6 +262,19 @@ function pedidosApp() {
                 console.error("Error al cargar pedidos:", err);
             }
         },
+        // Calcula si un pedido específico tiene faltantes (suma de (pedido - entregado))
+        calcularFaltantesPedido(pedido) {
+            let totalFaltantes = 0;
+            if (pedido.detalles) {
+                pedido.detalles.forEach(item => {
+                    const pedidoCant = item.cantidad_pedida || 0;
+                    const entregadoCant = item.cantidad_entregada !== undefined ? item.cantidad_entregada : pedidoCant;
+                    const diff = pedidoCant - entregadoCant;
+                    if (diff > 0) totalFaltantes += diff;
+                });
+            }
+            return totalFaltantes;
+        },
         get pedidosFiltrados() {
             const filtrados = {};
             const queryNombre = this.filtroNombre.toLowerCase();
@@ -256,6 +284,9 @@ function pedidosApp() {
                 
                 const pedidosValidos = grupo.pedidos.filter(p => {
                     if (this.filtroEstado === 'todos') return true;
+                    if (this.filtroEstado === 'con_faltantes') {
+                        return this.calcularFaltantesPedido(p) > 0;
+                    }
                     return p.estado === this.filtroEstado;
                 });
 
@@ -315,7 +346,7 @@ function pedidosApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al ajustar el pedido');
 
-                this.mensajeAlerta = `¡Pedido #${this.pedidoSeleccionado.pedido_id} procesado con éxito! Se archivó de los pendientes y se descontó el stock enviado.`;
+                this.mensajeAlerta = `¡Pedido #${this.pedidoSeleccionado.pedido_id} procesado y ajustado con éxito! Stock descontado.`;
                 this.modalInstance.hide();
                 this.cargarPedidos();
             } catch (err) {
