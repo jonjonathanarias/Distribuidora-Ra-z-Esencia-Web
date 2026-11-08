@@ -12,7 +12,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="#">Raíz & Esencia</a>
+        <a class="navbar-brand fw-bold" href="#">Raíz & Esencia - Panel Admin</a>
         <div class="d-flex align-items-center gap-3">
             <a href="pedidos.html" class="btn btn-outline-light btn-sm">Ver Pedidos</a>
             <a href="cuenta-corriente.html" class="btn btn-outline-light btn-sm">Cuentas Corrientes</a>
@@ -21,24 +21,38 @@
     </div>
 </nav>
 
-<div class="container">
+<div class="container mb-5">
+    <!-- Alertas globales -->
+    <template x-if="mensajeAlerta">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <span x-text="mensajeAlerta"></span>
+            <button type="button" class="btn-close" @click="mensajeAlerta = ''"></button>
+        </div>
+    </template>
+    <template x-if="mensajeError">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span x-text="mensajeError"></span>
+            <button type="button" class="btn-close" @click="mensajeError = ''"></button>
+        </div>
+    </template>
+
     <div class="row g-4">
-        <!-- Cierre Quincenal -->
+        <!-- 1. Cierre Quincenal -->
         <div class="col-md-6">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white fw-bold py-3 text-primary">Cierre Quincenal (Márgenes)</div>
                 <div class="card-body">
                     <form @submit.prevent="ejecutarQuincenal()">
                         <div class="mb-3">
-                            <label class="form-label small">ID del Experto/a</label>
+                            <label class="form-label small fw-semibold">ID del Experto/a</label>
                             <input type="number" class="form-control" x-model="quincenal.expertoId" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small">Monto PSD Marzzan ($)</label>
+                            <label class="form-label small fw-semibold">Monto PSD Marzzan ($)</label>
                             <input type="number" step="0.01" class="form-control" x-model="quincenal.montoPSD" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small">Unidades Reino</label>
+                            <label class="form-label small fw-semibold">Unidades Reino</label>
                             <input type="number" class="form-control" x-model="quincenal.unidadesReino" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 fw-semibold">Procesar Cierre Quincenal</button>
@@ -47,23 +61,23 @@
             </div>
         </div>
 
-        <!-- Cierre Mensual -->
+        <!-- 2. Cierre Mensual -->
         <div class="col-md-6">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white fw-bold py-3 text-success">Cierre Mensual (Comisiones)</div>
                 <div class="card-body">
                     <form @submit.prevent="ejecutarMensual()">
                         <div class="mb-3">
-                            <label class="form-label small">ID Líder</label>
+                            <label class="form-label small fw-semibold">ID Líder</label>
                             <input type="number" class="form-control" x-model="mensual.liderId" required>
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <label class="form-label small">Unidades Equipo</label>
+                                <label class="form-label small fw-semibold">Unidades Equipo</label>
                                 <input type="number" class="form-control" x-model="mensual.unidadesEquipo" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label small">Facturación Neta ($)</label>
+                                <label class="form-label small fw-semibold">Facturación Neta ($)</label>
                                 <input type="number" step="0.01" class="form-control" x-model="mensual.facturacionNeta" required>
                             </div>
                         </div>
@@ -73,14 +87,70 @@
             </div>
         </div>
 
-        <!-- Panel de Resultado de Auditoría -->
+        <!-- Panel de Resultado de Auditoría (Cierres) -->
         <div class="col-12" x-show="resultado">
-            <div class="card shadow-sm border-0 border-start border-4" :class="resultado.status === 'success' ? 'border-success' : 'border-danger'">
+            <div class="card shadow-sm border-0 border-start border-4" :class="resultado?.status === 'success' ? 'border-success' : 'border-danger'">
                 <div class="card-body">
-                    <h5 class="fw-bold" x-text="resultado.mensaje"></h5>
-                    <div class="mt-2" x-show="resultado.experto">
+                    <h5 class="fw-bold" x-text="resultado?.mensaje || resultado?.resultado_cierre?.mensaje"></h5>
+                    <div class="mt-2" x-show="resultado?.experto">
                         <span class="badge bg-secondary" x-text="'Margen: ' + (resultado.experto?.margen_guardado || '-')"></span>
                         <span class="badge bg-info text-dark" x-text="'Estado Reino: ' + (resultado.experto?.estado_reino_guardado || '-')"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS (Excel y PDF) -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0 p-4">
+                <h4 class="fw-bold text-primary mb-2">📁 Importación Masiva de Catálogos y Precios</h4>
+                <p class="text-muted small mb-4">Selecciona la empresa y sube el archivo correspondiente para actualizar la base de datos de productos automáticamente.</p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Empresa / Marca Destino</label>
+                        <select class="form-select" x-model.number="empresaSeleccionadaId" required>
+                            <option value="">-- Seleccione una empresa --</option>
+                            <template x-for="emp in empresas" :key="emp.id">
+                                <option :value="emp.id" x-text="emp.nombre"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Importar Excel -->
+                    <div class="col-md-6">
+                        <div class="card border p-3 h-100 bg-light">
+                            <h5 class="fw-bold text-success mb-2">📊 Importar Catálogo Excel (.xls / .xlsx)</h5>
+                            <p class="text-muted small">Planilla oficial de precios para actualizar costos y PVP masivamente.</p>
+                            <form @submit.prevent="importarExcel()">
+                                <div class="mb-3">
+                                    <input type="file" class="form-control form-control-sm" id="fileExcel" accept=".xls, .xlsx" required>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold" :disabled="cargandoExcel">
+                                    <span x-show="!cargandoExcel">Subir y Procesar Excel</span>
+                                    <span x-show="cargandoExcel" class="spinner-border spinner-border-sm"></span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Importar PDF -->
+                    <div class="col-md-6">
+                        <div class="card border p-3 h-100 bg-light">
+                            <h5 class="fw-bold text-danger mb-2">📄 Importar Catálogo PDF (Sandra Marzzan / Reino)</h5>
+                            <p class="text-muted small">Folleto o lista en PDF para extracción y sincronización automática de artículos.</p>
+                            <form @submit.prevent="importarPdf()">
+                                <div class="mb-3">
+                                    <input type="file" class="form-control form-control-sm" id="filePdf" accept=".pdf" required>
+                                </div>
+                                <button type="submit" class="btn btn-danger btn-sm w-100 fw-semibold" :disabled="cargandoPdf">
+                                    <span x-show="!cargandoPdf">Subir y Procesar PDF</span>
+                                    <span x-show="cargandoPdf" class="spinner-border spinner-border-sm"></span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -94,29 +164,136 @@ function dashboardApp() {
         quincenal: { expertoId: 4, montoPSD: 45000, unidadesReino: 4 },
         mensual: { liderId: 4, unidadesEquipo: 120, facturacionNeta: 350000 },
         resultado: null,
+        empresas: [],
+        empresaSeleccionadaId: '',
+        cargandoExcel: false,
+        cargandoPdf: false,
+        mensajeAlerta: '',
+        mensajeError: '',
         init() {
-            verificarSesion();
+            if (typeof verificarSesion === 'function') verificarSesion();
+            this.cargarEmpresas();
+        },
+        async cargarEmpresas() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.empresas = data.data || [];
+                    if (this.empresas.length > 0) {
+                        this.empresaSeleccionadaId = this.empresas[0].id;
+                    }
+                }
+            } catch (err) {
+                console.error("Error al cargar empresas:", err);
+            }
         },
         async ejecutarQuincenal() {
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
             try {
                 const url = `${CONFIG.API_BASE_URL}/red/cierre-quincenal/${this.quincenal.expertoId}?monto_psd_marzzan=${this.quincenal.montoPSD}&unidades_reino=${this.quincenal.unidadesReino}`;
                 const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error en cierre quincenal');
                 this.resultado = data;
+                this.mensajeAlerta = "Cierre quincenal procesado con éxito.";
             } catch (err) {
-                alert(err.message);
+                this.mensajeError = err.message;
             }
         },
         async ejecutarMensual() {
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
             try {
                 const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual/${this.mensual.liderId}?unidades_equipo_total=${this.mensual.unidadesEquipo}&unidades_personales_c1=10&unidades_personales_c2=10&facturacion_neta_equipo=${this.mensual.facturacionNeta}`;
                 const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error en cierre mensual');
                 this.resultado = data;
+                this.mensajeAlerta = "Cierre mensual y liquidación procesados con éxito.";
             } catch (err) {
-                alert(err.message);
+                this.mensajeError = err.message;
+            }
+        },
+        async importarExcel() {
+            if (!this.empresaSeleccionadaId) {
+                this.mensajeError = "Por favor, seleccione una empresa.";
+                return;
+            }
+            const fileInput = document.getElementById('fileExcel');
+            if (fileInput.files.length === 0) {
+                this.mensajeError = "Seleccione un archivo de Excel válido.";
+                return;
+            }
+
+            this.cargandoExcel = true;
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const headers = getAuthHeaders();
+                delete headers['Content-Type']; // Permite que fetch configure el multipart boundary automáticamente
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/${this.empresaSeleccionadaId}/importar-productos`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo Excel');
+
+                this.mensajeAlerta = `¡Éxito! ${data.message} (Nuevos: ${data.productos_nuevos}, Actualizados: ${data.productos_actualizados})`;
+                fileInput.value = '';
+            } catch (err) {
+                this.mensajeError = err.message;
+            } finally {
+                this.cargandoExcel = false;
+            }
+        },
+        async importarPdf() {
+            if (!this.empresaSeleccionadaId) {
+                this.mensajeError = "Por favor, seleccione una empresa.";
+                return;
+            }
+            const fileInput = document.getElementById('filePdf');
+            if (fileInput.files.length === 0) {
+                this.mensajeError = "Seleccione un archivo PDF válido.";
+                return;
+            }
+
+            this.cargandoPdf = true;
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const headers = getAuthHeaders();
+                delete headers['Content-Type'];
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/${this.empresaSeleccionadaId}/importar-pdf`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo PDF');
+
+                this.mensajeAlerta = `¡Éxito! ${data.message} (Nuevos: ${data.productos_nuevos}, Actualizados: ${data.productos_actualizados})`;
+                fileInput.value = '';
+            } catch (err) {
+                this.mensajeError = err.message;
+            } finally {
+                this.cargandoPdf = false;
             }
         }
     }
