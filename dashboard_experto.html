@@ -34,6 +34,11 @@
                 ➕ Cargar Nuevo Pedido
             </button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link fw-semibold" :class="vistaActiva === 'mi_equipo' ? 'active bg-success text-white' : 'text-success bg-white border border-success'" @click="vistaActiva = 'mi_equipo'; cargarMiEquipo()">
+                👥 Mi Red / Mi Equipo
+            </button>
+        </li>
     </ul>
 
     <!-- Alertas -->
@@ -41,6 +46,12 @@
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <span x-text="mensajeAlerta"></span>
             <button type="button" class="btn-close" @click="mensajeAlerta = ''"></button>
+        </div>
+    </template>
+    <template x-if="mensajeError">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span x-text="mensajeError"></span>
+            <button type="button" class="btn-close" @click="mensajeError = ''"></button>
         </div>
     </template>
 
@@ -137,7 +148,6 @@
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Empresa / Marca</label>
-                    <!-- Selector 100% dinámico alimentado por el endpoint /empresas/ -->
                     <select class="form-select" x-model.number="nuevoPedido.empresa_id" @change="cambiarEmpresa()" required>
                         <option value="">-- Seleccione una empresa --</option>
                         <template x-for="emp in empresasDisponibles" :key="emp.id">
@@ -159,7 +169,6 @@
                     <label class="form-label small" x-text="'Buscar Producto en Catálogo (' + obtenerNombreEmpresaSeleccionada() + ')'"></label>
                     <select class="form-select" x-model.number="productoSeleccionadoId">
                         <option value="">-- Seleccione un producto --</option>
-                        <!-- Filtramos en tiempo real según el empresa_id seleccionado -->
                         <template x-for="prod in productosFiltrados" :key="prod.id">
                             <option :value="prod.id" x-text="prod.nombre + ' (Stock: ' + prod.stock_actual + ') - $' + prod.precio_venta"></option>
                         </template>
@@ -174,7 +183,6 @@
                 </div>
             </div>
 
-            <!-- Carrito de items -->
             <div class="table-responsive mb-4">
                 <table class="table table-bordered align-middle">
                     <thead class="table-light small">
@@ -215,6 +223,87 @@
             </div>
         </form>
     </div>
+
+    <!-- VISTA 3: MI RED / MI EQUIPO (NUEVO) -->
+    <div x-show="vistaActiva === 'mi_equipo'" style="display: none;" :style="vistaActiva === 'mi_equipo' ? 'display: block;' : 'display: none;'">
+        <!-- Tarjeta de Resumen -->
+        <div class="card shadow-sm border-0 mb-4 bg-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <span class="badge bg-success mb-2" x-text="liderInfo.es_lider ? '🌟 Líder Oficial de Red' : 'Asesor/a Comercial'"></span>
+                    <h3 class="fw-bold text-dark mb-1" x-text="liderInfo.nombre || usuario?.nombre || 'Experta'"></h3>
+                    <p class="text-muted small mb-0">
+                        Código de Integrante: <strong class="text-success" x-text="liderInfo.codigo_integrante || 'Sin Código'"></strong> | 
+                        Localidad: <span x-text="liderInfo.localidad || 'Jesús María'"></span>
+                    </p>
+                </div>
+                <div class="text-md-end bg-light p-3 rounded border">
+                    <span class="text-muted small d-block">Incorporados en Red Directa</span>
+                    <h2 class="fw-bold text-success mb-0" x-text="totalIncorporados"></h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listado Interactivo de Equipo -->
+        <div class="card shadow-sm border-0 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h4 class="fw-bold text-success mb-1">👥 Mi Red Directa (Equipo de Incorporados)</h4>
+                    <p class="text-muted small mb-0">Listado interactivo de las asesoras bajo su patrocinio con acceso directo a comunicación por WhatsApp.</p>
+                </div>
+                <button class="btn btn-outline-success btn-sm fw-semibold" @click="cargarMiEquipo()">
+                    🔄 Actualizar Equipo
+                </button>
+            </div>
+
+            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light small sticky-top">
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre y Apellido</th>
+                            <th>DNI</th>
+                            <th>Zona / Barrio</th>
+                            <th class="text-center">Marca que Trabaja</th>
+                            <th class="text-center">Acciones de Contacto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="inc in equipoDirecto" :key="inc.id">
+                            <tr>
+                                <td class="fw-bold text-secondary" x-text="inc.codigo_integrante"></td>
+                                <td class="fw-semibold text-dark" x-text="inc.nombre"></td>
+                                <td class="text-muted" x-text="inc.dni || 'S/D'"></td>
+                                <td>
+                                    <span x-text="inc.barrio ? (inc.barrio + ' (' + inc.localidad + ')') : inc.localidad"></span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info text-dark" x-text="inc.marca_trabaja || 'Ambas'"></span>
+                                </td>
+                                <td class="text-center">
+                                    <template x-if="inc.whatsapp_link && inc.whatsapp_link !== '#'">
+                                        <a :href="inc.whatsapp_link" target="_blank" class="btn btn-success btn-sm fw-semibold px-3">
+                                            💬 WhatsApp Directo
+                                        </a>
+                                    </template>
+                                    <template x-if="!inc.whatsapp_link || inc.whatsapp_link === '#'">
+                                        <span class="text-muted small">Sin teléfono registrado</span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="equipoDirecto.length === 0">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    No se encontraron incorporaciones directas registradas bajo su red actualmente.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -225,11 +314,16 @@ function expertoDashboardApp() {
         vistaActiva: 'mis_pedidos',
         pedidos: [],
         productosDisponibles: [],
-        empresasDisponibles: [], // Almacena las empresas activas traídas de la API
+        empresasDisponibles: [],
         productoSeleccionadoId: '',
         cantidadItem: 1,
         mensajeAlerta: '',
+        mensajeError: '',
         enviando: false,
+        // Variables para la vista de Mi Equipo
+        liderInfo: {},
+        equipoDirecto: [],
+        totalIncorporados: 0,
         nuevoPedido: {
             empresa_id: '',
             empresa: '',
@@ -241,12 +335,15 @@ function expertoDashboardApp() {
             
             const usr = localStorage.getItem('usuario');
             if (usr) {
-                try { this.usuario = JSON.parse(usr); } catch(e) { this.usuario = { nombre: 'Experta' }; }
+                try { this.usuario = JSON.parse(usr); } catch(e) { this.usuario = { id: 1, nombre: 'Experta' }; }
+            } else {
+                this.usuario = { id: 1, nombre: 'Experta' };
             }
             
-            this.cargarEmpresas();    // Cargamos dinámicamente las empresas del sistema
+            this.cargarEmpresas();
             this.cargarMisPedidos();
             this.cargarProductos();
+            this.cargarMiEquipo();
         },
         async cargarEmpresas() {
             try {
@@ -256,7 +353,6 @@ function expertoDashboardApp() {
                 const data = await res.json();
                 if (res.ok) {
                     this.empresasDisponibles = data.data || [];
-                    // Si hay empresas disponibles, seleccionamos la primera por defecto
                     if (this.empresasDisponibles.length > 0) {
                         this.nuevoPedido.empresa_id = this.empresasDisponibles[0].id;
                         this.cambiarEmpresa();
@@ -290,18 +386,35 @@ function expertoDashboardApp() {
                 console.error("Error al cargar catálogo:", err);
             }
         },
-        // Obtiene dinámicamente el nombre de la empresa seleccionada para la etiqueta
+        async cargarMiEquipo() {
+            try {
+                const usuarioId = this.usuario ? this.usuario.id : 1;
+                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    this.liderInfo = data.lider || {};
+                    this.equipoDirecto = data.equipo_directo || [];
+                    this.totalIncorporados = data.total_incorporados_directos || 0;
+                } else {
+                    throw new Error(data.detail || 'Error al cargar los datos del equipo');
+                }
+            } catch (err) {
+                console.error("Error al consultar la red:", err);
+                this.mensajeError = "No se pudo sincronizar el árbol de red con el servidor.";
+            }
+        },
         obtenerNombreEmpresaSeleccionada() {
             const emp = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
             return emp ? emp.nombre : '';
         },
-        // Propiedad computada: Filtra los productos según el empresa_id seleccionado
         get productosFiltrados() {
             const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
             return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
         },
         cambiarEmpresa() {
-            // Extraemos el nombre de la empresa seleccionada para enviarlo en texto plano al backend
             const empresaObj = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
             if (empresaObj) {
                 this.nuevoPedido.empresa = empresaObj.nombre.toLowerCase();
