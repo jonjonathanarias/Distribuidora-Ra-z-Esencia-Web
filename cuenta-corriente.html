@@ -18,17 +18,21 @@
 </nav>
 
 <div class="container mb-5">
-    <!-- Buscador de Cuenta por Experto ID -->
+    <!-- Selector de Experta por Nombre (Reemplaza el input por ID) -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-3">
             <div>
-                <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - <span x-text="nombreExperto"></span></h5>
-                <span class="badge bg-secondary mt-1" x-text="'ID Experto: ' + expertoId"></span>
+                <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - <span x-text="nombreExpertoSeleccionado"></span></h5>
+                <span class="badge bg-secondary mt-1" x-text="expertoId ? ('ID Seleccionado: ' + expertoId) : 'Seleccione una experta'"></span>
             </div>
             <div class="d-flex gap-2 align-items-center">
-                <label class="small fw-semibold text-muted">ID:</label>
-                <input type="number" class="form-control form-control-sm" style="width: 100px;" x-model.number="expertoId">
-                <button class="btn btn-primary btn-sm fw-semibold" @click="cargarCuenta()">🔍 Consultar</button>
+                <label class="small fw-semibold text-muted">Experta:</label>
+                <select class="form-select form-select-sm" style="min-width: 280px;" x-model.number="expertoId" @change="cargarCuenta()">
+                    <option value="">-- Seleccione una experta --</option>
+                    <template x-for="exp in listaExpertas" :key="exp.id">
+                        <option :value="exp.id" x-text="exp.nombre + ' (' + (exp.codigo_integrante || 'Sin Código') + ')'"></option>
+                    </template>
+                </select>
             </div>
         </div>
         
@@ -88,7 +92,7 @@
                         </template>
                         <template x-if="movimientos.length === 0">
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No se registran movimientos en la cuenta corriente de este usuario.</td>
+                                <td colspan="6" class="text-center text-muted py-4">Seleccione una experta del menú superior para consultar su cuenta corriente.</td>
                             </tr>
                         </template>
                     </tbody>
@@ -101,23 +105,50 @@
 <script>
 function ccApp() {
     return {
-        expertoId: 4,
-        nombreExperto: 'Cargando...',
+        expertoId: '',
+        nombreExpertoSeleccionado: 'Seleccione una experta',
+        listaExpertas: [],
         saldoActual: 0.00,
         semaforoTexto: '🟢 VERDE (Al día)',
         movimientos: [],
         init() {
             verificarSesion();
-            this.cargarCuenta();
+            this.cargarListaExpertas();
+        },
+        async cargarListaExpertas() {
+            try {
+                // Consultamos la auditoría global para obtener el listado completo de expertas y sus nombres/códigos
+                const res = await fetch(`${CONFIG.API_BASE_URL}/red/auditoria-global`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.listaExpertas = data.auditoria_general || [];
+                    // Si hay expertas, seleccionamos la primera por defecto automáticamente
+                    if (this.listaExpertas.length > 0) {
+                        this.expertoId = this.listaExpertas[0].id;
+                        this.cargarCuenta();
+                    }
+                }
+            } catch (err) {
+                console.error("Error al cargar lista de expertas:", err);
+            }
         },
         async cargarCuenta() {
+            if (!this.expertoId) return;
+
+            // Actualizamos el nombre visual de la experta seleccionada
+            const expEncontrada = this.listaExpertas.find(e => e.id === parseInt(this.expertoId));
+            if (expEncontrada) {
+                this.nombreExpertoSeleccionado = `${expEncontrada.nombre} (${expEncontrada.codigo_integrante})`;
+            }
+
             try {
                 const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/${this.expertoId}`, {
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    this.nombreExperto = data.experto?.nombre || 'Experta';
                     this.saldoActual = data.saldo_actual || 0.00;
                     this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
                     this.movimientos = data.historial_movimientos || [];
@@ -126,7 +157,6 @@ function ccApp() {
                 }
             } catch (err) {
                 console.error(err);
-                this.nombreExperto = 'No encontrado';
                 this.movimientos = [];
                 this.saldoActual = 0.00;
             }
