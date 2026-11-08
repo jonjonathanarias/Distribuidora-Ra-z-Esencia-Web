@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Experta | REINO & Marzzan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="js/config.js"></script>
+</head>
+<body class="bg-light" x-data="expertoDashboardApp()" x-init="init()">
+
+<!-- Barra de navegación de la Experta -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-success shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">Panel de Gestión Comercial - Experta</a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white small" x-text="'Hola, ' + (usuario?.nombre || 'Experta')"></span>
+            <button class="btn btn-outline-light btn-sm" @click="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Pestañas internas -->
+    <ul class="nav nav-pills mb-4 justify-content-center gap-2">
+        <li class="nav-item">
+            <button class="nav-link fw-semibold" :class="vistaActiva === 'mis_pedidos' ? 'active bg-success text-white' : 'text-success bg-white border border-success'" @click="vistaActiva = 'mis_pedidos'">
+                📦 Mis Pedidos y Seguimiento
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-semibold" :class="vistaActiva === 'nuevo_pedido' ? 'active bg-success text-white' : 'text-success bg-white border border-success'" @click="vistaActiva = 'nuevo_pedido'">
+                ➕ Cargar Nuevo Pedido
+            </button>
+        </li>
+    </ul>
+
+    <!-- Alertas -->
+    <template x-if="mensajeAlerta">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <span x-text="mensajeAlerta"></span>
+            <button type="button" class="btn-close" @click="mensajeAlerta = ''"></button>
+        </div>
+    </template>
+
+    <!-- VISTA 1: MIS PEDIDOS Y SEGUIMIENTO -->
+    <div x-show="vistaActiva === 'mis_pedidos'" style="display: none;" :style="vistaActiva === 'mis_pedidos' ? 'display: block;' : 'display: none;'">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold text-success mb-0">Historial de Mis Solicitudes</h4>
+            <span class="badge bg-secondary fs-6" x-text="'Total: ' + pedidos.length"></span>
+        </div>
+
+        <div class="row g-4">
+            <template x-for="p in pedidos" :key="p.pedido_id">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0 border-start border-4 border-success">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="fw-bold mb-0 text-dark" x-text="'Pedido #' + p.pedido_id"></h5>
+                                <span class="badge bg-info text-dark mt-1" x-text="'Empresa: ' + p.empresa"></span>
+                            </div>
+                            <div>
+                                <span class="badge fs-6 px-3 py-2"
+                                      :class="{
+                                          'bg-warning text-dark': p.estado === 'pendiente',
+                                          'bg-info text-dark': p.estado === 'aprobado',
+                                          'bg-primary text-white': p.estado === 'facturado',
+                                          'bg-success text-white': p.estado === 'recibido_faltantes_ajustados',
+                                          'bg-danger text-white': p.estado === 'rechazado'
+                                      }" x-text="'Estado: ' + p.estado.toUpperCase()"></span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Fecha límite del ciclo: <strong x-text="p.fecha_limite"></strong></p>
+                            
+                            <h6 class="fw-bold text-secondary mb-2">Detalle de Artículos y Faltantes:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle mb-0">
+                                    <thead class="table-light small">
+                                        <tr>
+                                            <th>Producto / SKU</th>
+                                            <th class="text-center">Solicitado</th>
+                                            <th class="text-center">A Enviar / Entregado</th>
+                                            <th class="text-center text-danger">Faltante (Pendiente)</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="item in p.detalles" :key="item.detalle_id">
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold" x-text="item.nombre_producto"></div>
+                                                    <div class="small text-muted" x-text="'SKU: ' + item.codigo_sku"></div>
+                                                </td>
+                                                <td class="text-center fw-bold" x-text="item.cantidad_pedida"></td>
+                                                <td class="text-center text-success fw-bold" x-text="item.cantidad_entregada"></td>
+                                                <td class="text-center">
+                                                    <template x-if="item.cantidad_faltante > 0">
+                                                        <span class="badge bg-danger" x-text="item.cantidad_faltante + ' un.'"></span>
+                                                    </template>
+                                                    <template x-if="item.cantidad_faltante === 0">
+                                                        <span class="text-muted small">Ninguno</span>
+                                                    </template>
+                                                </td>
+                                                <td class="text-end fw-semibold" x-text="'$' + (item.precio_unitario * item.cantidad_entregada).toFixed(2)"></td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!p.detalles || p.detalles.length === 0">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-2 small">Este pedido no contiene detalles de productos cargados.</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="pedidos.length === 0">
+                <div class="col-12 text-center py-5 text-muted bg-white rounded shadow-sm">
+                    <h5>Aún no has registrado ningún pedido.</h5>
+                    <p class="small">Haz clic en la pestaña "Cargar Nuevo Pedido" para enviar tu primera solicitud.</p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- VISTA 2: CARGAR NUEVO PEDIDO -->
+    <div x-show="vistaActiva === 'nuevo_pedido'" style="display: none;" :style="vistaActiva === 'nuevo_pedido' ? 'display: block;' : 'display: none;'" class="card shadow-sm border-0 p-4">
+        <h4 class="fw-bold text-success mb-3">Armar Nuevo Pedido para la Distribuidora</h4>
+        <p class="text-muted small">Selecciona la empresa, define la fecha límite y agrega los productos que necesitas solicitar.</p>
+        
+        <form @submit.prevent="enviarPedido()">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Empresa / Marca</label>
+                    <select class="form-select" x-model="nuevoPedido.empresa" required>
+                        <option value="reino">Reino</option>
+                        <option value="marzzan">Sandra Marzzan</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Fecha Límite Estimada</label>
+                    <input type="date" class="form-control" x-model="nuevoPedido.fecha_limite" required>
+                </div>
+            </div>
+
+            <hr>
+            <h5 class="fw-bold text-secondary mb-3">Selección de Productos</h5>
+            
+            <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label small">Buscar Producto en Catálogo</label>
+                    <select class="form-select" x-model.number="productoSeleccionadoId">
+                        <option value="">-- Seleccione un producto --</option>
+                        <template x-for="prod in productosDisponibles" :key="prod.id">
+                            <option :value="prod.id" x-text="prod.nombre + ' ($' + prod.precio_venta + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Cantidad</label>
+                    <input type="number" class="form-control" x-model.number="cantidadItem" min="1" value="1">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-success w-100 fw-semibold" @click="agregarItemAlCarrito()">+ Agregar</button>
+                </div>
+            </div>
+
+            <!-- Carrito -->
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center" style="width: 150px;">Cantidad</th>
+                            <th class="text-end" style="width: 150px;">Precio Unit.</th>
+                            <th class="text-end" style="width: 150px;">Subtotal</th>
+                            <th class="text-center" style="width: 80px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(item, index) in nuevoPedido.detalles" :key="index">
+                            <tr>
+                                <td x-text="item.nombre"></td>
+                                <td class="text-center fw-bold" x-text="item.cantidad_solicitada"></td>
+                                <td class="text-end" x-text="'$' + item.precio_unitario.toFixed(2)"></td>
+                                <td class="text-end fw-semibold text-success" x-text="'$' + (item.precio_unitario * item.cantidad_solicitada).toFixed(2)"></td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @click="quitarItem(index)">X</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="nuevoPedido.detalles.length === 0">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">Aún no has agregado productos al pedido.</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-success px-5 fw-bold py-2" :disabled="enviando || nuevoPedido.detalles.length === 0">
+                    <span x-show="!enviando">🚀 Enviar Pedido a la Distribuidora</span>
+                    <span x-show="enviando" class="spinner-border spinner-border-sm"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function expertoDashboardApp() {
+    return {
+        usuario: null,
+        vistaActiva: 'mis_pedidos',
+        pedidos: [],
+        productosDisponibles: [],
+        productoSeleccionadoId: '',
+        cantidadItem: 1,
+        mensajeAlerta: '',
+        enviando: false,
+        nuevoPedido: {
+            empresa: 'reino',
+            fecha_limite: '',
+            detalles: []
+        },
+        init() {
+            // Validar sesión antes de cargar
+            if (typeof verificarSesion === 'function') {
+                verificarSesion();
+            }
+            
+            const usr = localStorage.getItem('usuario');
+            if (usr) {
+                try {
+                    this.usuario = JSON.parse(usr);
+                } catch(e) {
+                    this.usuario = { nombre: 'Experta' };
+                }
+            }
+            
+            this.cargarMisPedidos();
+            this.cargarProductos();
+        },
+        async cargarMisPedidos() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/mis-pedidos/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.pedidos = data.pedidos || [];
+                } else {
+                    console.error("Error al obtener pedidos:", data);
+                }
+            } catch (err) {
+                console.error("Error de red al cargar pedidos:", err);
+            }
+        },
+        async cargarProductos() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.productosDisponibles = data.data || [];
+                }
+            } catch (err) {
+                console.error("Error al cargar catálogo de productos:", err);
+            }
+        },
+        agregarItemAlCarrito() {
+            if (!this.productoSeleccionadoId) return alert('Selecciona un producto');
+            const producto = this.productosDisponibles.find(p => p.id === this.productoSeleccionadoId);
+            if (!producto) return;
+
+            const existente = this.nuevoPedido.detalles.features || this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
+            // Corrección segura de búsqueda en array
+            const itemExistente = this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
+
+            if (itemExistente) {
+                itemExistente.cantidad_solicitada += parseInt(this.cantidadItem);
+            } else {
+                this.nuevoPedido.detalles.push({
+                    producto_id: producto.id,
+                    nombre: producto.nombre,
+                    cantidad_solicitada: parseInt(this.cantidadItem),
+                    precio_unitario: producto.precio_venta
+                });
+            }
+            this.productoSeleccionadoId = '';
+            this.cantidadItem = 1;
+        },
+        quitarItem(index) {
+            this.nuevoPedido.detalles.splice(index, 1);
+        },
+        async enviarPedido() {
+            this.enviando = true;
+            try {
+                const payload = {
+                    experto_id: this.usuario ? this.usuario.id : 0,
+                    empresa: this.nuevoPedido.empresa,
+                    fecha_limite: this.nuevoPedido.fecha_limite,
+                    detalles: this.nuevoPedido.detalles.map(i => ({
+                        producto_id: i.producto_id,
+                        cantidad_solicitada: i.cantidad_solicitada
+                    }))
+                };
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al crear el pedido');
+
+                this.mensajeAlerta = `¡Pedido #${data.pedido_id} creado y enviado con éxito a la distribuidora!`;
+                this.nuevoPedido.detalles = [];
+                this.vistaActiva = 'mis_pedidos';
+                this.cargarMisPedidos();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                this.enviando = false;
+            }
+        },
+        cerrarSesion() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    }
+}
+</script>
+</body>
+</html>
