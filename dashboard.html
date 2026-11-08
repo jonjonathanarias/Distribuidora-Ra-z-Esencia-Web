@@ -39,7 +39,7 @@
         </div>
     </template>
 
-    <!-- BARRA DE PESTAÑAS PRINCIPALES (Diseño unificado y elegante) -->
+    <!-- BARRA DE PESTAÑAS PRINCIPALES -->
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body py-2 px-3 d-flex flex-wrap gap-2 justify-content-center bg-white rounded-3">
             <button class="btn btn-sm fw-semibold px-3 py-2" 
@@ -70,15 +70,15 @@
         </div>
     </div>
 
-    <!-- 1. SECCIÓN: CIERRES Y LIQUIDACIONES (Con selectores por nombre) -->
+    <!-- 1. SECCIÓN: CIERRES Y LIQUIDACIONES (Incluye Cierre Quincenal, Mensual y Cierre Mensual Diferido de Reino) -->
     <div x-show="seccionActiva === 'cierres'" style="display: none;" :style="seccionActiva === 'cierres' ? 'display: block;' : 'display: none;'">
         <div class="row g-4">
-            <!-- Cierre Quincenal -->
+            <!-- Cierre Quincenal Automático -->
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 h-100 rounded-3">
                     <div class="card-header bg-white fw-bold py-3 text-primary border-0 pt-4 px-4">
-                        <h5 class="mb-0 fw-bold">🕒 Cierre Quincenal (Márgenes)</h5>
-                        <p class="text-muted small mb-0 fw-normal">Evaluación quincenal de mínimos para Marzzan y Reino.</p>
+                        <h5 class="mb-0 fw-bold">🕒 Cierre Quincenal Automático</h5>
+                        <p class="text-muted small mb-0 fw-normal">El sistema calcula los PSD de Marzzan y unidades de Reino desde los pedidos.</p>
                     </div>
                     <div class="card-body px-4 pb-4">
                         <form @submit.prevent="ejecutarQuincenal()">
@@ -91,21 +91,16 @@
                                     </template>
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-secondary">Monto PSD Marzzan ($)</label>
-                                <input type="number" step="0.01" class="form-control" x-model="quincenal.montoPSD" required>
+                            <div class="alert alert-info py-2 small mb-4">
+                                ℹ️ Suma autónoma de remitos azules y facturas verdes de mostrador.
                             </div>
-                            <div class="mb-4">
-                                <label class="form-label small fw-semibold text-secondary">Unidades Reino</label>
-                                <input type="number" class="form-control" x-model="quincenal.unidadesReino" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">⚡ Procesar Cierre Quincenal</button>
+                            <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">⚡ Ejecutar Cierre Quincenal Automático</button>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Cierre Mensual -->
+            <!-- Cierre Mensual (Comisiones) -->
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 h-100 rounded-3">
                     <div class="card-header bg-white fw-bold py-3 text-success border-0 pt-4 px-4">
@@ -134,6 +129,42 @@
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-success w-100 fw-semibold py-2 mt-2">💰 Liquidar Comisión 10%</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NUEVO: Cierre Mensual Diferido de Reino (Doble Quincena) -->
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-white fw-bold py-3 text-success border-0 pt-4 px-4">
+                        <h5 class="mb-0 fw-bold">🌿 Auditoría Mensual Diferida - REINO (Doble Quincena)</h5>
+                        <p class="text-muted small mb-0 fw-normal">Cruza las 10 unidades de ambas quincenas para aplicar o eximir el castigo del 30% el mes próximo.</p>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        <form @submit.prevent="ejecutarCierreReinoMensual()">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold text-secondary">Seleccionar Experta / Asesora</label>
+                                    <select class="form-select" x-model.number="reinoMensual.expertoId" required>
+                                        <option value="">-- Seleccionar experta --</option>
+                                        <template x-for="lider in listaLideres" :key="lider.id">
+                                            <option :value="lider.id" x-text="lider.nombre + ' (' + (lider.codigo_integrante || 'Sin Código') + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold text-secondary">Unidades Cierre Q1</label>
+                                    <input type="number" class="form-control" x-model.number="reinoMensual.unidadesQ1" min="0" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold text-secondary">Unidades Cierre Q2</label>
+                                    <input type="number" class="form-control" x-model.number="reinoMensual.unidadesQ2" min="0" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-success w-100 fw-semibold py-2">🔍 Auditar Reino</button>
+                                </div>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -445,8 +476,9 @@
 function dashboardApp() {
     return {
         seccionActiva: 'cierres',
-        quincenal: { expertoId: '', montoPSD: 45000, unidadesReino: 4 },
+        quincenal: { expertoId: '' },
         mensual: { liderId: '', unidadesEquipo: 120, facturacionNeta: 350000 },
+        reinoMensual: { expertoId: '', unidadesQ1: 10, unidadesQ2: 10 },
         resultado: null,
         empresas: [],
         empresaSeleccionadaId: '',
@@ -623,12 +655,12 @@ function dashboardApp() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
             try {
-                const url = `${CONFIG.API_BASE_URL}/red/cierre-quincenal/${this.quincenal.expertoId}?monto_psd_marzzan=${this.quincenal.montoPSD}&unidades_reino=${this.quincenal.unidadesReino}`;
+                const url = `${CONFIG.API_BASE_URL}/red/cierre-quincenal/${this.quincenal.expertoId}`;
                 const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error en cierre quincenal');
                 this.resultado = data;
-                this.mensajeAlerta = "Cierre quincenal procesado y guardado con éxito.";
+                this.mensajeAlerta = "¡Cierre quincenal procesado y guardado con éxito!";
             } catch (err) {
                 this.mensajeError = err.message;
             }
@@ -647,6 +679,24 @@ function dashboardApp() {
                 if (!res.ok) throw new Error(data.detail || 'Error en cierre mensual');
                 this.resultado = data;
                 this.mensajeAlerta = "Cierre mensual y liquidación procesados con éxito.";
+            } catch (err) {
+                this.mensajeError = err.message;
+            }
+        },
+        async ejecutarCierreReinoMensual() {
+            if (!this.reinoMensual.expertoId) {
+                this.mensajeError = "Por favor, seleccione una experta para la auditoría mensual de Reino.";
+                return;
+            }
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+            try {
+                const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual-reino/${this.reinoMensual.expertoId}?unidades_quincena_1=${this.reinoMensual.unidadesQ1}&unidades_quincena_2=${this.reinoMensual.unidadesQ2}`;
+                const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error en auditoría mensual de Reino');
+                this.resultado = data;
+                this.mensajeAlerta = "¡Auditoría mensual diferida de Reino procesada con éxito!";
             } catch (err) {
                 this.mensajeError = err.message;
             }

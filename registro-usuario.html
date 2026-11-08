@@ -1,0 +1,171 @@
+<!-- SECCIÓN DE REGISTRO DE NUEVO INTEGRANTE (ADMIN) -->
+<div class="card shadow-sm border-0 p-4 mb-4" x-data="registroUsuarioApp()" x-init="init()">
+    <h4 class="fw-bold text-primary mb-3">👤 Registrar Nuevo Integrante en la Red (CRM)</h4>
+    <p class="text-muted small mb-4">Complete los datos personales, geográficos y comerciales del nuevo integrante.</p>
+
+    <!-- Alertas -->
+    <template x-if="mensajeAlerta">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <span x-text="mensajeAlerta"></span>
+            <button type="button" class="btn-close" @click="mensajeAlerta = ''"></button>
+        </div>
+    </template>
+    <template x-if="mensajeError">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span x-text="mensajeError"></span>
+            <button type="button" class="btn-close" @click="mensajeError = ''"></button>
+        </div>
+    </template>
+
+    <form @submit.prevent="registrarUsuario()">
+        <div class="row g-3">
+            <!-- Datos Personales -->
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">Nombre Completo</label>
+                <input type="text" class="form-control" x-model="form.nombre" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">Correo Electrónico (Login)</label>
+                <input type="email" class="form-control" x-model="form.email" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Contraseña Temporal</label>
+                <input type="password" class="form-control" x-model="form.password" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">DNI</label>
+                <input type="text" class="form-control" x-model="form.dni" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">CUIL</label>
+                <input type="text" class="form-control" x-model="form.cuil">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Fecha de Nacimiento</label>
+                <input type="date" class="form-control" x-model="form.fecha_nacimiento">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Teléfono / WhatsApp</label>
+                <input type="text" class="form-control" x-model="form.telefono" placeholder="Ej: 3525456789">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Rol en el Sistema</label>
+                <select class="form-select" x-model="form.rol" required>
+                    <option value="experto">Experta / Asesor/a</option>
+                    <option value="admin">Administrador/a</option>
+                </select>
+            </div>
+
+            <!-- Datos Geográficos -->
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">Domicilio (Calle y Número)</label>
+                <input type="text" class="form-control" x-model="form.domicilio">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Barrio</label>
+                <input type="text" class="form-control" x-model="form.barrio">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Localidad</label>
+                <input type="text" class="form-control" x-model="form.localidad" value="Jesús María">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Código Postal</label>
+                <input type="text" class="form-control" x-model="form.codigo_postal">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">ID Patrocinador (Líder)</label>
+                <input type="number" class="form-control" x-model.number="form.id_patrocinador" placeholder="Opcional">
+            </div>
+
+            <!-- SELECCIÓN DE MARCAS CON CHECKBOXES (Requerimiento 1) -->
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold d-block">Marcas con las que Trabaja</label>
+                <div class="d-flex gap-4 mt-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Reino" id="checkReino" x-model="marcasSeleccionadas">
+                        <label class="form-check-label fw-semibold" for="checkReino">Reino</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Marzzan" id="checkMarzzan" x-model="marcasSeleccionadas">
+                        <label class="form-check-label fw-semibold" for="checkMarzzan">Sandra Marzzan</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 text-end mt-4">
+                <button type="submit" class="btn btn-primary px-5 fw-bold" :disabled="enviando">
+                    <span x-show="!enviando">💾 Registrar Integrante y Generar Código</span>
+                    <span x-show="enviando" class="spinner-border spinner-border-sm"></span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function registroUsuarioApp() {
+    return {
+        form: {
+            nombre: '',
+            email: '',
+            password: '',
+            dni: '',
+            cuil: '',
+            fecha_nacimiento: '',
+            domicilio: '',
+            barrio: '',
+            localidad: 'Jesús María',
+            codigo_postal: '',
+            telefono: '',
+            rol: 'experto',
+            id_patrocinador: null,
+            marca_trabaja: ''
+        },
+        marcasSeleccionadas: [], // Array para manejar los checkboxes
+        mensajeAlerta: '',
+        mensajeError: '',
+        enviando: false,
+        init() {},
+        async registrarUsuario() {
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+            this.enviando = true;
+
+            // Unimos las marcas seleccionadas en un string (ej: "Reino, Marzzan" o "Ambas" si ambas están tildadas)
+            if (this.marcasSeleccionadas.length === 2) {
+                this.form.marca_trabaja = "Ambas";
+            } else {
+                this.form.marca_trabaja = this.marcasSeleccionadas.join(", ") || "Ninguna";
+            }
+
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/registro`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(this.form)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al registrar al usuario');
+
+                this.mensajeAlerta = `¡Integrante registrado con éxito! Código asignado: ${data.codigo_integrante}.`;
+                
+                // Limpiar formulario
+                this.form = {
+                    nombre: '', email: '', password: '', dni: '', cuil: '',
+                    fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
+                    codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
+                };
+                this.marcasSeleccionadas = [];
+            } catch (err) {
+                this.mensajeError = err.message;
+            } finally {
+                this.enviando = false;
+            }
+        }
+    }
+}
+</script>
