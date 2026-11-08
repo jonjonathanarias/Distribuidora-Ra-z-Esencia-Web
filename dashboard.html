@@ -40,17 +40,22 @@
     <!-- HEADER CON BOTONES / PESTAÑAS DE NAVEGACIÓN -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body py-3 d-flex flex-wrap gap-2 justify-content-center bg-white rounded">
-            <button class="btn fw-semibold px-4" 
+            <button class="btn fw-semibold px-3" 
                     :class="seccionActiva === 'cierres' ? 'btn-primary shadow' : 'btn-outline-primary'" 
                     @click="seccionActiva = 'cierres'">
                 ⚙️ Cierres y Liquidaciones
             </button>
-            <button class="btn fw-semibold px-4" 
+            <button class="btn fw-semibold px-3" 
+                    :class="seccionActiva === 'registro' ? 'btn-warning text-dark shadow' : 'btn-outline-warning text-dark'" 
+                    @click="seccionActiva = 'registro'">
+                👤 Registrar Integrante
+            </button>
+            <button class="btn fw-semibold px-3" 
                     :class="seccionActiva === 'importacion' ? 'btn-success shadow' : 'btn-outline-success'" 
                     @click="seccionActiva = 'importacion'">
                 📁 Importación de Catálogos
             </button>
-            <button class="btn fw-semibold px-4" 
+            <button class="btn fw-semibold px-3" 
                     :class="seccionActiva === 'stock' ? 'btn-dark shadow' : 'btn-outline-dark'" 
                     @click="seccionActiva = 'stock'">
                 📦 Gestión de Stock Físico
@@ -126,7 +131,100 @@
         </div>
     </div>
 
-    <!-- 2. SECCIÓN: IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS -->
+    <!-- 2. SECCIÓN: REGISTRO DE NUEVO INTEGRANTE (CRM) -->
+    <div x-show="seccionActiva === 'registro'" style="display: none;" :style="seccionActiva === 'registro' ? 'display: block;' : 'display: none;'">
+        <div class="card shadow-sm border-0 p-4">
+            <h4 class="fw-bold text-primary mb-3">👤 Registrar Nuevo Integrante en la Red (CRM)</h4>
+            <p class="text-muted small mb-4">Complete los datos personales, geográficos y comerciales del nuevo integrante. Se generará un código único automáticamente.</p>
+
+            <form @submit.prevent="registrarUsuario()">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Nombre Completo</label>
+                        <input type="text" class="form-control" x-model="formReg.nombre" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Correo Electrónico (Login)</label>
+                        <input type="email" class="form-control" x-model="formReg.email" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Contraseña Temporal</label>
+                        <input type="password" class="form-control" x-model="formReg.password" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">DNI</label>
+                        <input type="text" class="form-control" x-model="formReg.dni" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">CUIL</label>
+                        <input type="text" class="form-control" x-model="formReg.cuil">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Fecha de Nacimiento</label>
+                        <input type="date" class="form-control" x-model="formReg.fecha_nacimiento">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Teléfono / WhatsApp</label>
+                        <input type="text" class="form-control" x-model="formReg.telefono" placeholder="Ej: 3525456789">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Rol en el Sistema</label>
+                        <select class="form-select" x-model="formReg.rol" required>
+                            <option value="experto">Experta / Asesor/a</option>
+                            <option value="admin">Administrador/a</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Domicilio (Calle y Número)</label>
+                        <input type="text" class="form-control" x-model="formReg.domicilio">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Barrio</label>
+                        <input type="text" class="form-control" x-model="formReg.barrio">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Localidad</label>
+                        <input type="text" class="form-control" x-model="formReg.localidad">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Código Postal</label>
+                        <input type="text" class="form-control" x-model="formReg.codigo_postal">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">ID Patrocinador (Líder)</label>
+                        <input type="number" class="form-control" x-model.number="formReg.id_patrocinador" placeholder="Opcional">
+                    </div>
+
+                    <!-- SELECCIÓN DE MARCAS CON CHECKBOXES -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold d-block">Marcas con las que Trabaja</label>
+                        <div class="d-flex gap-4 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="Reino" id="checkReino" x-model="marcasSeleccionadas">
+                                <label class="form-check-label fw-semibold" for="checkReino">Reino</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="Marzzan" id="checkMarzzan" x-model="marcasSeleccionadas">
+                                <label class="form-check-label fw-semibold" for="checkMarzzan">Sandra Marzzan</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 text-end mt-4">
+                        <button type="submit" class="btn btn-primary px-5 fw-bold" :disabled="enviandoReg">
+                            <span x-show="!enviandoReg">💾 Registrar Integrante y Generar Código</span>
+                            <span x-show="enviandoReg" class="spinner-border spinner-border-sm"></span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. SECCIÓN: IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS -->
     <div x-show="seccionActiva === 'importacion'" style="display: none;" :style="seccionActiva === 'importacion' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-success mb-2">📁 Importación Masiva de Catálogos y Precios</h4>
@@ -182,7 +280,7 @@
         </div>
     </div>
 
-    <!-- 3. SECCIÓN: GESTIÓN DE STOCK FÍSICO -->
+    <!-- 4. SECCIÓN: GESTIÓN DE STOCK FÍSICO -->
     <div x-show="seccionActiva === 'stock'" style="display: none;" :style="seccionActiva === 'stock' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-dark mb-2">📦 Gestión y Control de Stock Físico</h4>
@@ -259,6 +357,16 @@ function dashboardApp() {
         cargandoPdf: false,
         mensajeAlerta: '',
         mensajeError: '',
+        
+        // Datos específicos para el formulario de registro (CRM)
+        formReg: {
+            nombre: '', email: '', password: '', dni: '', cuil: '',
+            fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
+            codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
+        },
+        marcasSeleccionadas: [],
+        enviandoReg: false,
+
         init() {
             if (typeof verificarSesion === 'function') verificarSesion();
             this.cargarEmpresas();
@@ -325,6 +433,43 @@ function dashboardApp() {
                 this.mensajeAlerta = `¡Stock actualizado con éxito para "${producto.nombre}" (${producto.stock_actual} unidades)!`;
             } catch (err) {
                 this.mensajeError = err.message;
+            }
+        },
+        async registrarUsuario() {
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+            this.enviandoReg = true;
+
+            // Mapeo dinámico de marcas mediante los checkboxes seleccionados
+            if (this.marcasSeleccionadas.length === 2) {
+                this.formReg.marca_trabaja = "Ambas";
+            } else {
+                this.formReg.marca_trabaja = this.marcasSeleccionadas.join(", ") || "Ninguna";
+            }
+
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/registro`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(this.formReg)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al registrar al usuario');
+
+                this.mensajeAlerta = `¡Integrante registrado con éxito! Código asignado: ${data.codigo_integrante}.`;
+                
+                // Limpieza del formulario
+                this.formReg = {
+                    nombre: '', email: '', password: '', dni: '', cuil: '',
+                    fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
+                    codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
+                };
+                this.marcasSeleccionadas = [];
+            } catch (err) {
+                this.mensajeError = err.message;
+            } finally {
+                this.enviandoReg = false;
             }
         },
         async ejecutarQuincenal() {
@@ -397,7 +542,7 @@ function dashboardApp() {
         },
         async importarPdf() {
             if (!this.empresaSeleccionadaId) {
-                this.mensajeError = "Por_favor, seleccione una empresa.";
+                this.mensajeError = "Por favor, seleccione una empresa.";
                 return;
             }
             const fileInput = document.getElementById('filePdf');
@@ -431,7 +576,8 @@ function dashboardApp() {
                 this.cargarProductosStock();
             } catch (err) {
                 this.mensajeError = err.message;
-            } finally {
+            }
+            finally {
                 this.cargandoPdf = false;
             }
         }
