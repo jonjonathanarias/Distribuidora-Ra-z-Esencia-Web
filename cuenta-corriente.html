@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuenta Corriente | Admin</title>
+    <title>Cuenta Corriente y Semáforo Financiero | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="js/config.js"></script>
@@ -13,34 +13,60 @@
 <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="dashboard.html">← Volver al Dashboard</a>
+        <span class="text-white small">Módulo Financiero y Control de Saldos</span>
     </div>
 </nav>
 
-<div class="container">
+<div class="container mb-5">
+    <!-- Buscador de Cuenta por Experto ID -->
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-            <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - Experto ID: <span x-text="expertoId"></span></h5>
-            <div class="d-flex gap-2">
-                <input type="number" class="form-control form-control-sm" style="width: 100px;" x-model="expertoId">
-                <button class="btn btn-primary btn-sm" @click="cargarCuenta()">Buscar</button>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-3">
+            <div>
+                <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - <span x-text="nombreExperto"></span></h5>
+                <span class="badge bg-secondary mt-1" x-text="'ID Experto: ' + expertoId"></span>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <label class="small fw-semibold text-muted">ID:</label>
+                <input type="number" class="form-control form-control-sm" style="width: 100px;" x-model.number="expertoId">
+                <button class="btn btn-primary btn-sm fw-semibold" @click="cargarCuenta()">🔍 Consultar</button>
             </div>
         </div>
+        
+        <!-- Tarjeta de Resumen Financiero y Semáforo -->
+        <div class="card-body bg-light border-top border-bottom p-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6">
+                    <span class="text-muted small d-block">Saldo Actual en Cuenta</span>
+                    <h2 class="fw-bold mb-0" :class="saldoActual >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + saldoActual.toFixed(2)"></h2>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="text-muted small d-block">Semáforo Financiero</span>
+                    <span class="badge fs-6 px-3 py-2 mt-1" 
+                          :class="saldoActual >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"
+                          x-text="semaforoTexto">
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Historial de Movimientos -->
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light small">
+                    <thead class="table-light small text-uppercase">
                         <tr>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
+                            <th>ID Mov.</th>
+                            <th>Tipo de Movimiento</th>
                             <th>Descripción</th>
-                            <th class="text-end">Monto</th>
-                            <th class="text-end">Saldo Resultante</th>
+                            <th class="text-end">Monto ($)</th>
+                            <th class="text-end">Saldo Resultante ($)</th>
+                            <th class="text-center">Comprobante PDF</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="mov in movimientos" :key="mov.id">
                             <tr>
-                                <td class="small text-muted" x-text="mov.fecha"></td>
+                                <td class="fw-bold" x-text="'#' + mov.id"></td>
                                 <td>
                                     <span class="badge" 
                                           :class="{
@@ -48,11 +74,21 @@
                                               'bg-success': mov.tipo_movimiento === 'pago_recibido',
                                               'bg-info text-dark': mov.tipo_movimiento === 'comision_liderazgo',
                                               'bg-warning text-dark': mov.tipo_movimiento === 'ajuste_manual'
-                                          }" x-text="mov.tipo_movimiento"></span>
+                                          }" x-text="mov.tipo_movimiento.toUpperCase()"></span>
                                 </td>
-                                <td class="small fw-semibold" x-text="mov.descripcion"></td>
-                                <td class="text-end fw-bold" :class="mov.monto > 0 ? 'text-success' : 'text-danger'" x-text="'$' + mov.monto.toFixed(2)"></td>
-                                <td class="text-end fw-bold" x-text="'$' + mov.saldo_resultante.toFixed(2)"></td>
+                                <td class="small fw-semibold text-secondary" x-text="mov.descripcion"></td>
+                                <td class="text-end fw-bold" :class="mov.monto >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + mov.monto.toFixed(2)"></td>
+                                <td class="text-end fw-bold text-dark" x-text="'$' + mov.saldo_resultante.toFixed(2)"></td>
+                                <td class="text-center">
+                                    <button class="btn btn-outline-secondary btn-sm fw-semibold" @click="descargarPdf(mov.id)">
+                                        📄 Descargar Recibo
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="movimientos.length === 0">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No se registran movimientos en la cuenta corriente de este usuario.</td>
                             </tr>
                         </template>
                     </tbody>
@@ -66,6 +102,9 @@
 function ccApp() {
     return {
         expertoId: 4,
+        nombreExperto: 'Cargando...',
+        saldoActual: 0.00,
+        semaforoTexto: '🟢 VERDE (Al día)',
         movimientos: [],
         init() {
             verificarSesion();
@@ -78,10 +117,38 @@ function ccApp() {
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    this.movimientos = data.historial || [];
+                    this.nombreExperto = data.experto?.nombre || 'Experta';
+                    this.saldoActual = data.saldo_actual || 0.00;
+                    this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
+                    this.movimientos = data.historial_movimientos || [];
+                } else {
+                    throw new Error(data.detail || 'No se pudo cargar la cuenta');
                 }
             } catch (err) {
                 console.error(err);
+                this.nombreExperto = 'No encontrado';
+                this.movimientos = [];
+                this.saldoActual = 0.00;
+            }
+        },
+        async descargarPdf(movimientoId) {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/pdf/${movimientoId}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('Error al generar el comprobante PDF');
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `recibo_cuenta_${movimientoId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert(`Error al descargar el recibo: ${err.message}`);
             }
         }
     }
