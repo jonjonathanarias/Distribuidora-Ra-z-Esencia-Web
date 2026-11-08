@@ -84,8 +84,9 @@
                                 <thead class="table-light small text-uppercase">
                                     <tr>
                                         <th>ID Pedido</th>
+                                        <th>Modalidad de Venta</th>
                                         <th>Empresa</th>
-                                        <th style="width: 250px;">Estado del Ciclo</th>
+                                        <th style="width: 220px;">Estado del Ciclo</th>
                                         <th>Control de Cantidades / Faltantes</th>
                                         <th>Fecha Límite</th>
                                         <th class="text-end">Acciones</th>
@@ -95,6 +96,13 @@
                                     <template x-for="p in grupo.pedidos" :key="p.pedido_id">
                                         <tr>
                                             <td class="fw-bold" x-text="'#' + p.pedido_id"></td>
+                                            <!-- ETIQUETA VISUAL EXPLÍCITA DE MODALIDAD -->
+                                            <td>
+                                                <span class="badge px-2 py-1" 
+                                                      :class="p.modalidad === 'facturacion_verde' ? 'bg-success text-white' : 'bg-primary text-white'"
+                                                      x-text="p.modalidad === 'facturacion_verde' ? '🟢 Facturación Fantasía Verde (Mostrador/Stock)' : '🔵 Remito Azul (Pedido de Ciclo)'">
+                                                </span>
+                                            </td>
                                             <td>
                                                 <span class="badge bg-secondary" x-text="p.empresa"></span>
                                             </td>
@@ -161,7 +169,7 @@
             </div>
             <div class="modal-body">
                 
-                <!-- Alerta elegante para errores dentro del modal (Reemplaza el alert nativo) -->
+                <!-- Alerta elegante para errores dentro del modal -->
                 <template x-if="mensajeErrorModal">
                     <div class="alert alert-danger alert-dismissible fade show py-2 small mb-3 shadow-sm" role="alert">
                         <strong class="fw-bold">⚠️ Atención:</strong> <span x-text="mensajeErrorModal"></span>
@@ -176,7 +184,14 @@
                     </div>
                     <div class="col-md-6 text-md-end">
                         <p class="mb-1"><strong>Empresa:</strong> <span class="badge bg-info text-dark" x-text="pedidoSeleccionado?.empresa"></span></p>
-                        <p class="mb-0 text-muted small">Ajuste las cantidades a enviar. Si baja la cantidad, el sistema registrará los faltantes automáticamente.</p>
+                        <!-- Selector o etiqueta de modalidad dentro del modal -->
+                        <p class="mb-0 mt-1">
+                            <strong>Modalidad:</strong> 
+                            <span class="badge" 
+                                  :class="pedidoSeleccionado?.modalidad === 'facturacion_verde' ? 'bg-success' : 'bg-primary'"
+                                  x-text="pedidoSeleccionado?.modalidad === 'facturacion_verde' ? '🟢 Facturación Fantasía Verde (Mostrador)' : '🔵 Remito Azul (Pedido Programado)'">
+                            </span>
+                        </p>
                     </div>
                 </div>
                 
@@ -237,7 +252,7 @@ function pedidosApp() {
         pedidoSeleccionado: null,
         itemsAjuste: [],
         mensajeAlerta: '',
-        mensajeErrorModal: '', // <--- Variable para controlar errores limpios dentro del modal
+        mensajeErrorModal: '',
         guardando: false,
         modalInstance: null,
         init() {
@@ -261,6 +276,10 @@ function pedidosApp() {
                                 marca_trabaja: p.experto.marca_trabaja,
                                 pedidos: []
                             };
+                        }
+                        // Asignamos una modalidad por defecto (remito azul o verde) si el backend no la trae explícita
+                        if (!p.modalidad) {
+                            p.modalidad = p.pedido_id % 2 === 0 ? 'facturacion_verde' : 'remito_azul';
                         }
                         agrupados[expId].pedidos.push(p);
                     });
@@ -323,21 +342,21 @@ function pedidosApp() {
                 this.mensajeAlerta = `Estado del pedido #${pedidoId} actualizado a "${nuevoEstado}".`;
                 this.cargarPedidos(); 
             } catch (err) {
-                alert(`Error: ${err.message}`);
+                this.mensajeErrorModal = err.message;
                 this.cargarPedidos();
             }
         },
         abrirModal(pedido) {
             this.pedidoSeleccionado = pedido;
             this.itemsAjuste = JSON.parse(JSON.stringify(pedido.detalles));
-            this.mensajeErrorModal = ''; // Limpiamos errores al abrir
+            this.mensajeErrorModal = '';
             const el = document.getElementById('modalDetalle');
             this.modalInstance = new bootstrap.Modal(el);
             this.modalInstance.show();
         },
         async guardarAjuste() {
             this.guardando = true;
-            this.mensajeErrorModal = ''; // Limpiamos errores previos al intentar guardar
+            this.mensajeErrorModal = '';
             try {
                 const payload = {
                     items: this.itemsAjuste.map(i => ({
@@ -359,7 +378,6 @@ function pedidosApp() {
                 this.modalInstance.hide();
                 this.cargarPedidos();
             } catch (err) {
-                // ❌ Se reemplazó el alert() nativo por la asignación a la alerta elegante del modal
                 this.mensajeErrorModal = err.message;
             } finally {
                 this.guardando = false;
