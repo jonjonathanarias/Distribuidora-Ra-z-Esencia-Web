@@ -69,17 +69,29 @@ function loginApp() {
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Credenciales inválidas');
 
-                // Guardamos el token y opcionalmente datos del usuario
+                // 1. Guardamos el token (usando la clave estandarizada 'jwt_token')
                 localStorage.setItem('jwt_token', data.access_token);
-                window.location.href = 'dashboard.html';
+                
+                // 2. Guardamos el objeto completo del usuario (incluyendo su rol y nombre)
+                if (data.usuario) {
+                    localStorage.setItem('usuario', JSON.stringify(data.usuario));
+                }
+
+                // 3. Redirección basada en el rol devuelto por la base de datos
+                const rol = data.usuario ? data.usuario.rol : 'experto';
+                
+                if (rol === 'admin') {
+                    window.location.href = 'dashboard.html'; // Panel de administración general
+                } else {
+                    window.location.href = 'dashboard_experto.html'; // Panel exclusivo de la experta
+                }
+
             } catch (err) {
                 this.errorMsg = err.message;
             } finally {
                 this.loading = false;
             }
-
         }
-        
     }
 }
 </script>
