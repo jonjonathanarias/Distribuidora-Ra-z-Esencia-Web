@@ -60,9 +60,43 @@
         </div>
     </template>
 
-    <!-- VISTA 0: MI PROGRESO QUINCENAL Y LÍDER ASIGNADA (Punto 4) -->
+    <!-- VISTA 0: MI PROGRESO QUINCENAL, LÍDER Y ALERTAS DINÁMICAS -->
     <div x-show="vistaActiva === 'mi_progreso'" style="display: none;" :style="vistaActiva === 'mi_progreso' ? 'display: block;' : 'display: none;'">
         <div class="row g-4">
+            
+            <!-- ZONA DE ALERTAS DINÁMICAS INTELIGENTES -->
+            <div class="col-12" x-show="progresoData.metricas">
+                <!-- Alerta Reino -->
+                <div class="alert shadow-sm border-0 border-start border-4 mb-3"
+                     :class="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? 'alert-success border-success' : 'alert-warning border-warning'">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fs-5" x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? '🎉' : '⚠️'"></span>
+                        <div>
+                            <strong x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? '¡Meta de Reino Cumplida!' : 'Atención con tu meta de Reino:'"></strong>
+                            <span x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 
+                                ? ' Ya alcanzaste o superaste las 10 unidades requeridas en esta quincena.' 
+                                : ' Te faltan ' + (10 - (progresoData.metricas?.unidades_reino_total || 0)) + ' unidades de Reino para evitar el congelamiento de ganancias al 30%.'">
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerta Marzzan -->
+                <div class="alert shadow-sm border-0 border-start border-4"
+                     :class="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? 'alert-success border-success' : 'alert-info border-info'">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fs-5" x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? '🎉' : '💡'"></span>
+                        <div>
+                            <strong x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? '¡Margen Marzzan Óptimo Asegurado!' : 'Progreso de Margen Marzzan:'"></strong>
+                            <span x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 
+                                ? ' ¡Ya cumpliste tu meta Marzzan de esta quincena! Superaste los $70.000 PSD y mantienes tu margen del 45%.' 
+                                : ' Llevas acumulado $' + (progresoData.metricas?.total_psd_marzzan || 0).toLocaleString() + ' PSD. Te faltan $' + (70000 - (progresoData.metricas?.total_psd_marzzan || 0)).toLocaleString() + ' PSD para asegurar el 45% (actualmente 20%).'">
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tarjeta de Líder / Patrocinador Asignado -->
             <div class="col-md-12">
                 <div class="card shadow-sm border-0 bg-white border-start border-4 border-success p-3">
@@ -109,9 +143,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="alert alert-light border small mt-2 mb-0">
-                        ℹ️ Acumula al menos 10 unidades físicas entre ambas quincenas para evitar el congelamiento de ganancias al 30%.
-                    </div>
                 </div>
             </div>
 
@@ -135,9 +166,6 @@
                                  :style="'width: ' + (progresoData.metricas?.porcentaje_marzzan || 0) + '%'">
                             </div>
                         </div>
-                    </div>
-                    <div class="alert alert-light border small mt-2 mb-0">
-                        ℹ️ Supera los $70.000 PSD para mantener tu margen óptimo del 45% (menor a ese monto aplica 20%).
                     </div>
                 </div>
             </div>

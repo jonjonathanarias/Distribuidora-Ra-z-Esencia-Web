@@ -17,7 +17,12 @@
             <span>🌿</span> Raíz & Esencia - Panel Admin
         </a>
         <div class="d-flex align-items-center gap-2">
-            <a href="pedidos.html" class="btn btn-outline-light btn-sm px-3 fw-semibold">📦 Pedidos</a>
+            <a href="pedidos.html" class="btn btn-outline-light btn-sm px-3 fw-semibold position-relative">
+                📦 Pedidos
+                <template x-if="pedidosPendientesCount > 0">
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" x-text="pedidosPendientesCount"></span>
+                </template>
+            </a>
             <a href="cuenta-corriente.html" class="btn btn-outline-light btn-sm px-3 fw-semibold">💳 Cuentas Corrientes</a>
             <button class="btn btn-light btn-sm text-primary fw-bold px-3 ms-2 shadow-sm" onclick="cerrarSesion()">Cerrar Sesión</button>
         </div>
@@ -25,6 +30,26 @@
 </nav>
 
 <div class="container mb-5">
+    <!-- BANNER DE NOTIFICACIÓN DE NUEVOS PEDIDOS PENDIENTES -->
+    <div class="row mb-4" x-show="pedidosPendientesCount > 0" style="display: none;" :style="pedidosPendientesCount > 0 ? 'display: block;' : 'display: none;'">
+        <div class="col-12">
+            <div class="alert alert-warning shadow-sm border-0 border-start border-4 border-warning d-flex justify-content-between align-items-center py-3 px-4 rounded-3 mb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="fs-3">🔔</span>
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">¡Nuevos pedidos realizados por las expertas!</h5>
+                        <p class="text-muted small mb-0">
+                            Hay <strong class="text-dark fs-6" x-text="pedidosPendientesCount"></strong> pedido(s) en estado pendiente esperando aprobación o revisión de stock.
+                        </p>
+                    </div>
+                </div>
+                <a href="pedidos.html" class="btn btn-warning text-dark fw-bold px-4 py-2 shadow-sm text-nowrap">
+                    📦 Gestionar Pedidos Ahora →
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Alertas globales -->
     <template x-if="mensajeAlerta">
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 border-start border-4 border-success" role="alert">
@@ -70,7 +95,7 @@
         </div>
     </div>
 
-    <!-- 1. SECCIÓN: CIERRES Y LIQUIDACIONES (Incluye Cierre Quincenal, Mensual y Cierre Mensual Diferido de Reino) -->
+    <!-- 1. SECCIÓN: CIERRES Y LIQUIDACIONES -->
     <div x-show="seccionActiva === 'cierres'" style="display: none;" :style="seccionActiva === 'cierres' ? 'display: block;' : 'display: none;'">
         <div class="row g-4">
             <!-- Cierre Quincenal Automático -->
@@ -134,7 +159,7 @@
                 </div>
             </div>
 
-            <!-- NUEVO: Cierre Mensual Diferido de Reino (Doble Quincena) -->
+            <!-- Cierre Mensual Diferido de Reino (Doble Quincena) -->
             <div class="col-md-12">
                 <div class="card shadow-sm border-0 rounded-3">
                     <div class="card-header bg-white fw-bold py-3 text-success border-0 pt-4 px-4">
@@ -493,6 +518,7 @@ function dashboardApp() {
         ejecutandoMasivo: false,
         mensajeAlerta: '',
         mensajeError: '',
+        pedidosPendientesCount: 0,
         
         auditoriaData: {},
         formReg: {
@@ -509,6 +535,20 @@ function dashboardApp() {
             this.cargarEmpresas();
             this.cargarProductosStock();
             this.cargarAuditoriaRed();
+            this.consultarPedidosPendientes();
+        },
+        async consultarPedidosPendientes() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok && data.pedidos) {
+                    this.pedidosPendientesCount = data.pedidos.filter(p => p.estado === 'pendiente').length;
+                }
+            } catch (err) {
+                console.error("Error al consultar pedidos pendientes:", err);
+            }
         },
         async cargarEmpresas() {
             try {
