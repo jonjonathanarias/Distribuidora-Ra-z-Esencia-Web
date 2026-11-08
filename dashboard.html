@@ -46,6 +46,11 @@
                 ⚙️ Cierres y Liquidaciones
             </button>
             <button class="btn fw-semibold px-3" 
+                    :class="seccionActiva === 'auditoria' ? 'btn-info text-dark shadow' : 'btn-outline-info text-dark'" 
+                    @click="seccionActiva = 'auditoria'; cargarAuditoriaRed()">
+                📊 Auditoría de Red
+            </button>
+            <button class="btn fw-semibold px-3" 
                     :class="seccionActiva === 'registro' ? 'btn-warning text-dark shadow' : 'btn-outline-warning text-dark'" 
                     @click="seccionActiva = 'registro'">
                 👤 Registrar Integrante
@@ -131,7 +136,77 @@
         </div>
     </div>
 
-    <!-- 2. SECCIÓN: REGISTRO DE NUEVO INTEGRANTE (CRM) -->
+    <!-- 2. SECCIÓN: AUDITORÍA DE RED Y ESTRUCTURAS (NUEVO) -->
+    <div x-show="seccionActiva === 'auditoria'" style="display: none;" :style="seccionActiva === 'auditoria' ? 'display: block;' : 'display: none;'">
+        <div class="card shadow-sm border-0 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4 class="fw-bold text-dark mb-1">📊 Panel de Auditoría y Estructuras de Red</h4>
+                    <p class="text-muted small mb-0">Supervisión en tiempo real del progreso de líderes, incorporaciones directas y cumplimiento de metas.</p>
+                </div>
+                <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarAuditoriaRed()">
+                    🔄 Actualizar Auditoría
+                </button>
+            </div>
+
+            <!-- Resumen superior de métricas -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 border rounded bg-light">
+                        <span class="text-muted small d-block">Total Expertas Evaluadas</span>
+                        <h3 class="fw-bold text-primary mb-0" x-text="auditoriaData.total_expertas_evaluadas || 0"></h3>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 border rounded bg-light">
+                        <span class="text-muted small d-block">Líderes Calificadas (≥ 10 incorporados)</span>
+                        <h3 class="fw-bold text-success mb-0" x-text="auditoriaData.total_lideres_calificadas || 0"></h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Auditoría Global -->
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light small sticky-top">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre de la Líder / Experta</th>
+                            <th>Código</th>
+                            <th>Localidad</th>
+                            <th class="text-center">Incorporados Directos</th>
+                            <th class="text-center">Estatus Oficial</th>
+                            <th class="text-center">Estado de Auditoría</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="item in auditoriaData.auditoria_general" :key="item.id">
+                            <tr>
+                                <td class="fw-bold" x-text="item.id"></td>
+                                <td class="fw-semibold" x-text="item.nombre"></td>
+                                <td class="text-muted small" x-text="item.codigo_integrante"></td>
+                                <td x-text="item.localidad"></td>
+                                <td class="text-center fw-bold fs-6" x-text="item.incorporados_directos"></td>
+                                <td class="text-center">
+                                    <span class="badge" :class="item.es_lider_oficial ? 'bg-success' : 'bg-secondary'" x-text="item.es_lider_oficial ? 'Oficial' : 'Estándar'"></span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge fs-6" :class="item.incorporados_directos >= 10 ? 'bg-success' : 'bg-danger'" x-text="item.estado_auditoria"></span>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="!auditoriaData.auditoria_general || auditoriaData.auditoria_general.length === 0">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">Cargando datos de la red o sin registros disponibles.</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SECCIÓN: REGISTRO DE NUEVO INTEGRANTE (CRM) -->
     <div x-show="seccionActiva === 'registro'" style="display: none;" :style="seccionActiva === 'registro' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-primary mb-3">👤 Registrar Nuevo Integrante en la Red (CRM)</h4>
@@ -194,7 +269,6 @@
                         <input type="text" class="form-control" x-model="formReg.codigo_postal">
                     </div>
 
-                    <!-- SELECTOR DESPLEGABLE DE PATROCINADORA POR NOMBRE -->
                     <div class="col-md-8">
                         <label class="form-label small fw-semibold">Patrocinador / Líder a Cargo</label>
                         <select class="form-select" x-model.number="formReg.id_patrocinador">
@@ -205,7 +279,6 @@
                         </select>
                     </div>
 
-                    <!-- SELECCIÓN DE MARCAS CON CHECKBOXES -->
                     <div class="col-md-6">
                         <label class="form-label small fw-semibold d-block">Marcas con las que Trabaja</label>
                         <div class="d-flex gap-4 mt-2">
@@ -231,7 +304,7 @@
         </div>
     </div>
 
-    <!-- 3. SECCIÓN: IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS -->
+    <!-- 4. SECCIÓN: IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS -->
     <div x-show="seccionActiva === 'importacion'" style="display: none;" :style="seccionActiva === 'importacion' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-success mb-2">📁 Importación Masiva de Catálogos y Precios</h4>
@@ -287,7 +360,7 @@
         </div>
     </div>
 
-    <!-- 4. SECCIÓN: GESTIÓN DE STOCK FÍSICO -->
+    <!-- 5. SECCIÓN: GESTIÓN DE STOCK FÍSICO -->
     <div x-show="seccionActiva === 'stock'" style="display: none;" :style="seccionActiva === 'stock' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-dark mb-2">📦 Gestión y Control de Stock Físico</h4>
@@ -365,7 +438,8 @@ function dashboardApp() {
         mensajeAlerta: '',
         mensajeError: '',
         
-        // Formulario de registro (CRM) y listado de líderes para el select
+        // Datos de auditoría y formulario de registro
+        auditoriaData: {},
         formReg: {
             nombre: '', email: '', password: '', dni: '', cuil: '',
             fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
@@ -379,7 +453,7 @@ function dashboardApp() {
             if (typeof verificarSesion === 'function') verificarSesion();
             this.cargarEmpresas();
             this.cargarProductosStock();
-            this.cargarLideres();
+            this.cargarAuditoriaRed();
         },
         async cargarEmpresas() {
             try {
@@ -410,18 +484,18 @@ function dashboardApp() {
                 console.error("Error al cargar productos para stock:", err);
             }
         },
-        async cargarLideres() {
+        async cargarAuditoriaRed() {
             try {
-                // Como reutilizamos la lógica de auditoría global o listado, podemos extraer las expertas registradas
                 const res = await fetch(`${CONFIG.API_BASE_URL}/red/auditoria-global`, {
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
                 if (res.ok) {
+                    this.auditoriaData = data;
                     this.listaLideres = data.auditoria_general || [];
                 }
             } catch (err) {
-                console.error("Error al cargar lista de líderes:", err);
+                console.error("Error al cargar auditoría de red:", err);
             }
         },
         get productosFiltradosStock() {
@@ -487,7 +561,7 @@ function dashboardApp() {
                     codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
                 };
                 this.marcasSeleccionadas = [];
-                this.cargarLideres(); // Refrescar lista de líderes por si se agregó una nueva
+                this.cargarAuditoriaRed(); // Actualiza listados y selectores de patrocinadoras
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
