@@ -189,13 +189,20 @@
                         <input type="text" class="form-control" x-model="formReg.localidad">
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label small fw-semibold">Código Postal</label>
                         <input type="text" class="form-control" x-model="formReg.codigo_postal">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold">ID Patrocinador (Líder)</label>
-                        <input type="number" class="form-control" x-model.number="formReg.id_patrocinador" placeholder="Opcional">
+
+                    <!-- SELECTOR DESPLEGABLE DE PATROCINADORA POR NOMBRE -->
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold">Patrocinador / Líder a Cargo</label>
+                        <select class="form-select" x-model.number="formReg.id_patrocinador">
+                            <option value="">-- Sin patrocinador directo (Pertenece a la Distribuidora Madre) --</option>
+                            <template x-for="lider in listaLideres" :key="lider.id">
+                                <option :value="lider.id" x-text="lider.nombre + ' (' + (lider.codigo_integrante || 'Sin Código') + ')'"></option>
+                            </template>
+                        </select>
                     </div>
 
                     <!-- SELECCIÓN DE MARCAS CON CHECKBOXES -->
@@ -358,12 +365,13 @@ function dashboardApp() {
         mensajeAlerta: '',
         mensajeError: '',
         
-        // Datos específicos para el formulario de registro (CRM)
+        // Formulario de registro (CRM) y listado de líderes para el select
         formReg: {
             nombre: '', email: '', password: '', dni: '', cuil: '',
             fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
             codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
         },
+        listaLideres: [],
         marcasSeleccionadas: [],
         enviandoReg: false,
 
@@ -371,6 +379,7 @@ function dashboardApp() {
             if (typeof verificarSesion === 'function') verificarSesion();
             this.cargarEmpresas();
             this.cargarProductosStock();
+            this.cargarLideres();
         },
         async cargarEmpresas() {
             try {
@@ -399,6 +408,20 @@ function dashboardApp() {
                 }
             } catch (err) {
                 console.error("Error al cargar productos para stock:", err);
+            }
+        },
+        async cargarLideres() {
+            try {
+                // Como reutilizamos la lógica de auditoría global o listado, podemos extraer las expertas registradas
+                const res = await fetch(`${CONFIG.API_BASE_URL}/red/auditoria-global`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.listaLideres = data.auditoria_general || [];
+                }
+            } catch (err) {
+                console.error("Error al cargar lista de líderes:", err);
             }
         },
         get productosFiltradosStock() {
@@ -440,7 +463,6 @@ function dashboardApp() {
             this.mensajeError = '';
             this.enviandoReg = true;
 
-            // Mapeo dinámico de marcas mediante los checkboxes seleccionados
             if (this.marcasSeleccionadas.length === 2) {
                 this.formReg.marca_trabaja = "Ambas";
             } else {
@@ -459,13 +481,13 @@ function dashboardApp() {
 
                 this.mensajeAlerta = `¡Integrante registrado con éxito! Código asignado: ${data.codigo_integrante}.`;
                 
-                // Limpieza del formulario
                 this.formReg = {
                     nombre: '', email: '', password: '', dni: '', cuil: '',
                     fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
                     codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
                 };
                 this.marcasSeleccionadas = [];
+                this.cargarLideres(); // Refrescar lista de líderes por si se agregó una nueva
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
@@ -576,8 +598,7 @@ function dashboardApp() {
                 this.cargarProductosStock();
             } catch (err) {
                 this.mensajeError = err.message;
-            }
-            finally {
+            } finally {
                 this.cargandoPdf = false;
             }
         }
