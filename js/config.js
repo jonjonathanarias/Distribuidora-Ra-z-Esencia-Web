@@ -1,9 +1,9 @@
 const CONFIG = {
     // Al probar localmente usás tu FastAPI local:
-    //API_BASE_URL: 'http://127.0.0.1:8000'
+    API_BASE_URL: 'http://127.0.0.1:8000'
     // Para cuando despliegues el backend a producción:
     // API_BASE_URL: 'https://api.tu-distribuidora.com'
-    API_BASE_URL: 'http://0.0.0.0:8000'
+    //API_BASE_URL: 'http://0.0.0.0:8000'
 };
 
 function getAuthHeaders() {
