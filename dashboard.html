@@ -10,6 +10,7 @@
 </head>
 <body class="bg-light" x-data="dashboardApp()" x-init="init()">
 
+<!-- Navbar Principal -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="#">Raíz & Esencia - Panel Admin</a>
@@ -36,123 +37,195 @@
         </div>
     </template>
 
-    <div class="row g-4">
-        <!-- 1. Cierre Quincenal -->
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white fw-bold py-3 text-primary">Cierre Quincenal (Márgenes)</div>
-                <div class="card-body">
-                    <form @submit.prevent="ejecutarQuincenal()">
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">ID del Experto/a</label>
-                            <input type="number" class="form-control" x-model="quincenal.expertoId" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Monto PSD Marzzan ($)</label>
-                            <input type="number" step="0.01" class="form-control" x-model="quincenal.montoPSD" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Unidades Reino</label>
-                            <input type="number" class="form-control" x-model="quincenal.unidadesReino" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-semibold">Procesar Cierre Quincenal</button>
-                    </form>
-                </div>
-            </div>
+    <!-- HEADER CON BOTONES / PESTAÑAS DE NAVEGACIÓN -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body py-3 d-flex flex-wrap gap-2 justify-content-center bg-white rounded">
+            <button class="btn fw-semibold px-4" 
+                    :class="seccionActiva === 'cierres' ? 'btn-primary shadow' : 'btn-outline-primary'" 
+                    @click="seccionActiva = 'cierres'">
+                ⚙️ Cierres y Liquidaciones
+            </button>
+            <button class="btn fw-semibold px-4" 
+                    :class="seccionActiva === 'importacion' ? 'btn-success shadow' : 'btn-outline-success'" 
+                    @click="seccionActiva = 'importacion'">
+                📁 Importación de Catálogos
+            </button>
+            <button class="btn fw-semibold px-4" 
+                    :class="seccionActiva === 'stock' ? 'btn-dark shadow' : 'btn-outline-dark'" 
+                    @click="seccionActiva = 'stock'">
+                📦 Gestión de Stock Físico
+            </button>
         </div>
+    </div>
 
-        <!-- 2. Cierre Mensual -->
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white fw-bold py-3 text-success">Cierre Mensual (Comisiones)</div>
-                <div class="card-body">
-                    <form @submit.prevent="ejecutarMensual()">
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">ID Líder</label>
-                            <input type="number" class="form-control" x-model="mensual.liderId" required>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">Unidades Equipo</label>
-                                <input type="number" class="form-control" x-model="mensual.unidadesEquipo" required>
+    <!-- 1. SECCIÓN: CIERRES Y LIQUIDACIONES -->
+    <div x-show="seccionActiva === 'cierres'" style="display: none;" :style="seccionActiva === 'cierres' ? 'display: block;' : 'display: none;'">
+        <div class="row g-4">
+            <!-- Cierre Quincenal -->
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white fw-bold py-3 text-primary">Cierre Quincenal (Márgenes)</div>
+                    <div class="card-body">
+                        <form @submit.prevent="ejecutarQuincenal()">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">ID del Experto/a</label>
+                                <input type="number" class="form-control" x-model="quincenal.expertoId" required>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">Facturación Neta ($)</label>
-                                <input type="number" step="0.01" class="form-control" x-model="mensual.facturacionNeta" required>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Monto PSD Marzzan ($)</label>
+                                <input type="number" step="0.01" class="form-control" x-model="quincenal.montoPSD" required>
                             </div>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100 fw-semibold">Liquidar Comisión 10%</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Panel de Resultado de Auditoría (Cierres) -->
-        <div class="col-12" x-show="resultado">
-            <div class="card shadow-sm border-0 border-start border-4" :class="resultado?.status === 'success' ? 'border-success' : 'border-danger'">
-                <div class="card-body">
-                    <h5 class="fw-bold" x-text="resultado?.mensaje || resultado?.resultado_cierre?.mensaje"></h5>
-                    <div class="mt-2" x-show="resultado?.experto">
-                        <span class="badge bg-secondary" x-text="'Margen: ' + (resultado.experto?.margen_guardado || '-')"></span>
-                        <span class="badge bg-info text-dark" x-text="'Estado Reino: ' + (resultado.experto?.estado_reino_guardado || '-')"></span>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Unidades Reino</label>
+                                <input type="number" class="form-control" x-model="quincenal.unidadesReino" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-semibold">Procesar Cierre Quincenal</button>
+                        </form>
                     </div>
                 </div>
             </div>
+
+            <!-- Cierre Mensual -->
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white fw-bold py-3 text-success">Cierre Mensual (Comisiones)</div>
+                    <div class="card-body">
+                        <form @submit.prevent="ejecutarMensual()">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">ID Líder</label>
+                                <input type="number" class="form-control" x-model="mensual.liderId" required>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">Unidades Equipo</label>
+                                    <input type="number" class="form-control" x-model="mensual.unidadesEquipo" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">Facturación Neta ($)</label>
+                                    <input type="number" step="0.01" class="form-control" x-model="mensual.facturacionNeta" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 fw-semibold">Liquidar Comisión 10%</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Resultado de Auditoría (Cierres) -->
+            <div class="col-12" x-show="resultado">
+                <div class="card shadow-sm border-0 border-start border-4" :class="resultado?.status === 'success' ? 'border-success' : 'border-danger'">
+                    <div class="card-body">
+                        <h5 class="fw-bold" x-text="resultado?.mensaje || resultado?.resultado_cierre?.mensaje"></h5>
+                        <div class="mt-2" x-show="resultado?.experto">
+                            <span class="badge bg-secondary" x-text="'Margen: ' + (resultado.experto?.margen_guardado || '-')"></span>
+                            <span class="badge bg-info text-dark" x-text="'Estado Reino: ' + (resultado.experto?.estado_reino_guardado || '-')"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- 3. IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS (Excel y PDF) -->
-        <div class="col-12">
-            <div class="card shadow-sm border-0 p-4">
-                <h4 class="fw-bold text-primary mb-2">📁 Importación Masiva de Catálogos y Precios</h4>
-                <p class="text-muted small mb-4">Selecciona la empresa y sube el archivo correspondiente para actualizar la base de datos de productos automáticamente.</p>
+    <!-- 2. SECCIÓN: IMPORTACIÓN MASIVA DE CATÁLOGOS Y PRECIOS -->
+    <div x-show="seccionActiva === 'importacion'" style="display: none;" :style="seccionActiva === 'importacion' ? 'display: block;' : 'display: none;'">
+        <div class="card shadow-sm border-0 p-4">
+            <h4 class="fw-bold text-success mb-2">📁 Importación Masiva de Catálogos y Precios</h4>
+            <p class="text-muted small mb-4">Selecciona la empresa y sube el archivo correspondiente para actualizar la base de datos de productos automáticamente.</p>
 
-                <div class="row g-3 mb-4">
-                    <div class="col-md-12">
-                        <label class="form-label fw-semibold">Empresa / Marca Destino</label>
-                        <select class="form-select" x-model.number="empresaSeleccionadaId" required>
-                            <option value="">-- Seleccione una empresa --</option>
-                            <template x-for="emp in empresas" :key="emp.id">
-                                <option :value="emp.id" x-text="emp.nombre"></option>
-                            </template>
-                        </select>
+            <div class="row g-3 mb-4">
+                <div class="col-md-12">
+                    <label class="form-label fw-semibold">Empresa / Marca Destino</label>
+                    <select class="form-select" x-model.number="empresaSeleccionadaId" required>
+                        <option value="">-- Seleccione una empresa --</option>
+                        <template x-for="emp in empresas" :key="emp.id">
+                            <option :value="emp.id" x-text="emp.nombre"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Importar Excel -->
+                <div class="col-md-6">
+                    <div class="card border p-3 h-100 bg-light">
+                        <h5 class="fw-bold text-success mb-2">📊 Importar Catálogo Excel (.xls / .xlsx)</h5>
+                        <p class="text-muted small">Planilla oficial de precios para actualizar costos y PVP masivamente.</p>
+                        <form @submit.prevent="importarExcel()">
+                            <div class="mb-3">
+                                <input type="file" class="form-control form-control-sm" id="fileExcel" accept=".xls, .xlsx" required>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold" :disabled="cargandoExcel">
+                                <span x-show="!cargandoExcel">Subir y Procesar Excel</span>
+                                <span x-show="cargandoExcel" class="spinner-border spinner-border-sm"></span>
+                            </button>
+                        </form>
                     </div>
                 </div>
 
-                <div class="row g-4">
-                    <!-- Importar Excel -->
-                    <div class="col-md-6">
-                        <div class="card border p-3 h-100 bg-light">
-                            <h5 class="fw-bold text-success mb-2">📊 Importar Catálogo Excel (.xls / .xlsx)</h5>
-                            <p class="text-muted small">Planilla oficial de precios para actualizar costos y PVP masivamente.</p>
-                            <form @submit.prevent="importarExcel()">
-                                <div class="mb-3">
-                                    <input type="file" class="form-control form-control-sm" id="fileExcel" accept=".xls, .xlsx" required>
-                                </div>
-                                <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold" :disabled="cargandoExcel">
-                                    <span x-show="!cargandoExcel">Subir y Procesar Excel</span>
-                                    <span x-show="cargandoExcel" class="spinner-border spinner-border-sm"></span>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Importar PDF -->
-                    <div class="col-md-6">
-                        <div class="card border p-3 h-100 bg-light">
-                            <h5 class="fw-bold text-danger mb-2">📄 Importar Catálogo PDF (Sandra Marzzan / Reino)</h5>
-                            <p class="text-muted small">Folleto o lista en PDF para extracción y sincronización automática de artículos.</p>
-                            <form @submit.prevent="importarPdf()">
-                                <div class="mb-3">
-                                    <input type="file" class="form-control form-control-sm" id="filePdf" accept=".pdf" required>
-                                </div>
-                                <button type="submit" class="btn btn-danger btn-sm w-100 fw-semibold" :disabled="cargandoPdf">
-                                    <span x-show="!cargandoPdf">Subir y Procesar PDF</span>
-                                    <span x-show="cargandoPdf" class="spinner-border spinner-border-sm"></span>
-                                </button>
-                            </form>
-                        </div>
+                <!-- Importar PDF -->
+                <div class="col-md-6">
+                    <div class="card border p-3 h-100 bg-light">
+                        <h5 class="fw-bold text-danger mb-2">📄 Importar Catálogo PDF (Sandra Marzzan / Reino)</h5>
+                        <p class="text-muted small">Folleto o lista en PDF para extracción y sincronización automática de artículos.</p>
+                        <form @submit.prevent="importarPdf()">
+                            <div class="mb-3">
+                                <input type="file" class="form-control form-control-sm" id="filePdf" accept=".pdf" required>
+                            </div>
+                            <button type="submit" class="btn btn-danger btn-sm w-100 fw-semibold" :disabled="cargandoPdf">
+                                <span x-show="!cargandoPdf">Subir y Procesar PDF</span>
+                                <span x-show="cargandoPdf" class="spinner-border spinner-border-sm"></span>
+                            </button>
+                        </form>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SECCIÓN: GESTIÓN DE STOCK FÍSICO -->
+    <div x-show="seccionActiva === 'stock'" style="display: none;" :style="seccionActiva === 'stock' ? 'display: block;' : 'display: none;'">
+        <div class="card shadow-sm border-0 p-4">
+            <h4 class="fw-bold text-dark mb-2">📦 Gestión y Control de Stock Físico</h4>
+            <p class="text-muted small mb-4">Busca un producto en el catálogo y ajusta su stock actual de manera manual.</p>
+
+            <!-- Buscador de productos -->
+            <div class="mb-3">
+                <input type="text" class="form-control" x-model="busquedaStock" placeholder="🔍 Escribe para filtrar por nombre de producto o SKU...">
+            </div>
+
+            <!-- Tabla de productos y control de stock -->
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light small sticky-top">
+                        <tr>
+                            <th>SKU</th>
+                            <th>Nombre del Producto</th>
+                            <th class="text-center" style="width: 150px;">Stock Actual</th>
+                            <th class="text-center" style="width: 150px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="prod in productosFiltradosStock" :key="prod.id">
+                            <tr>
+                                <td class="small fw-semibold" x-text="prod.codigo_sku"></td>
+                                <td x-text="prod.nombre"></td>
+                                <td class="text-center">
+                                    <input type="number" class="form-control form-control-sm text-center fw-bold" x-model.number="prod.stock_actual" min="0">
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-primary btn-sm px-3 fw-semibold" @click="guardarStock(prod)">
+                                        💾 Guardar
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="productosFiltradosStock.length === 0">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">No se encontraron productos coincidentes.</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -161,11 +234,14 @@
 <script>
 function dashboardApp() {
     return {
+        seccionActiva: 'cierres', // Controla qué sección se muestra en pantalla
         quincenal: { expertoId: 4, montoPSD: 45000, unidadesReino: 4 },
         mensual: { liderId: 4, unidadesEquipo: 120, facturacionNeta: 350000 },
         resultado: null,
         empresas: [],
         empresaSeleccionadaId: '',
+        productosStock: [],
+        busquedaStock: '',
         cargandoExcel: false,
         cargandoPdf: false,
         mensajeAlerta: '',
@@ -173,6 +249,7 @@ function dashboardApp() {
         init() {
             if (typeof verificarSesion === 'function') verificarSesion();
             this.cargarEmpresas();
+            this.cargarProductosStock();
         },
         async cargarEmpresas() {
             try {
@@ -188,6 +265,43 @@ function dashboardApp() {
                 }
             } catch (err) {
                 console.error("Error al cargar empresas:", err);
+            }
+        },
+        async cargarProductosStock() {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.productosStock = data.data || [];
+                }
+            } catch (err) {
+                console.error("Error al cargar productos para stock:", err);
+            }
+        },
+        get productosFiltradosStock() {
+            if (!this.busquedaStock) return this.productosStock;
+            const termino = this.busquedaStock.toLowerCase();
+            return this.productosStock.filter(p => 
+                p.nombre.toLowerCase().includes(termino) || 
+                p.codigo_sku.toLowerCase().includes(termino)
+            );
+        },
+        async guardarStock(producto) {
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/${producto.id}/stock?nuevo_stock=${producto.stock_actual}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al actualizar el stock');
+
+                this.mensajeAlerta = `¡Stock actualizado con éxito para "${producto.nombre}" (${producto.stock_actual} unidades)!`;
+            } catch (err) {
+                this.mensajeError = err.message;
             }
         },
         async ejecutarQuincenal() {
@@ -249,9 +363,9 @@ function dashboardApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo Excel');
 
-                // Mensaje detallado según los resultados
                 this.mensajeAlerta = `📊 Excel procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
+                this.cargarProductosStock(); // Refrescar lista de stock tras importar
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
@@ -289,9 +403,9 @@ function dashboardApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo PDF');
 
-                // Mensaje detallado según los resultados
                 this.mensajeAlerta = `📄 PDF procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
+                this.cargarProductosStock(); // Refrescar lista de stock tras importar
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
