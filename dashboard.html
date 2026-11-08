@@ -186,11 +186,23 @@
     <div x-show="seccionActiva === 'stock'" style="display: none;" :style="seccionActiva === 'stock' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
             <h4 class="fw-bold text-dark mb-2">📦 Gestión y Control de Stock Físico</h4>
-            <p class="text-muted small mb-4">Busca un producto en el catálogo y ajusta su stock actual de manera manual.</p>
+            <p class="text-muted small mb-4">Selecciona la empresa y filtra los productos para ajustar su stock actual de manera manual.</p>
 
-            <!-- Buscador de productos -->
-            <div class="mb-3">
-                <input type="text" class="form-control" x-model="busquedaStock" placeholder="🔍 Escribe para filtrar por nombre de producto o SKU...">
+            <!-- Filtros de Empresa y Buscador -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Filtrar por Empresa</label>
+                    <select class="form-select" x-model.number="empresaFiltroStock">
+                        <option value="">-- Todas las empresas --</option>
+                        <template x-for="emp in empresas" :key="emp.id">
+                            <option :value="emp.id" x-text="emp.nombre"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small fw-semibold">Buscar Producto</label>
+                    <input type="text" class="form-control" x-model="busquedaStock" placeholder="🔍 Escribe para filtrar por nombre de producto o SKU...">
+                </div>
             </div>
 
             <!-- Tabla de productos y control de stock -->
@@ -221,7 +233,7 @@
                         </template>
                         <template x-if="productosFiltradosStock.length === 0">
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-3">No se encontraron productos coincidentes.</td>
+                                <td colspan="4" class="text-center text-muted py-3">No se encontraron productos coincidentes para esta selección.</td>
                             </tr>
                         </template>
                     </tbody>
@@ -234,12 +246,13 @@
 <script>
 function dashboardApp() {
     return {
-        seccionActiva: 'cierres', // Controla qué sección se muestra en pantalla
+        seccionActiva: 'cierres',
         quincenal: { expertoId: 4, montoPSD: 45000, unidadesReino: 4 },
         mensual: { liderId: 4, unidadesEquipo: 120, facturacionNeta: 350000 },
         resultado: null,
         empresas: [],
         empresaSeleccionadaId: '',
+        empresaFiltroStock: '', // Nuevo filtro de empresa para la tabla de stock
         productosStock: [],
         busquedaStock: '',
         cargandoExcel: false,
@@ -281,12 +294,24 @@ function dashboardApp() {
             }
         },
         get productosFiltradosStock() {
-            if (!this.busquedaStock) return this.productosStock;
-            const termino = this.busquedaStock.toLowerCase();
-            return this.productosStock.filter(p => 
-                p.nombre.toLowerCase().includes(termino) || 
-                p.codigo_sku.toLowerCase().includes(termino)
-            );
+            let resultado = this.productosStock;
+
+            // 1. Filtrar por empresa seleccionada si hay una elegida
+            if (this.empresaFiltroStock !== '' && this.empresaFiltroStock !== null) {
+                const idEmpresaNum = parseInt(this.empresaFiltroStock);
+                resultado = resultado.filter(p => p.empresa_id === idEmpresaNum);
+            }
+
+            // 2. Filtrar por texto de búsqueda (Nombre o SKU)
+            if (this.busquedaStock) {
+                const termino = this.busquedaStock.toLowerCase();
+                resultado = resultado.filter(p => 
+                    p.nombre.toLowerCase().includes(termino) || 
+                    p.codigo_sku.toLowerCase().includes(termino)
+                );
+            }
+
+            return resultado;
         },
         async guardarStock(producto) {
             this.mensajeAlerta = '';
@@ -365,7 +390,7 @@ function dashboardApp() {
 
                 this.mensajeAlerta = `📊 Excel procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
-                this.cargarProductosStock(); // Refrescar lista de stock tras importar
+                this.cargarProductosStock();
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
@@ -405,7 +430,7 @@ function dashboardApp() {
 
                 this.mensajeAlerta = `📄 PDF procesado con éxito. Productos nuevos dados de alta: ${data.productos_nuevos} | Productos con precios/datos actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
-                this.cargarProductosStock(); // Refrescar lista de stock tras importar
+                this.cargarProductosStock();
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
