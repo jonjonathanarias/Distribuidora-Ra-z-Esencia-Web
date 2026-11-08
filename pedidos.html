@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    <!-- Pestañas de Filtro Rápido (Incluyendo Facturados, Rechazados y Faltantes Parciales) -->
+    <!-- Pestañas de Filtro Rápido -->
     <div class="d-flex flex-wrap gap-2 mb-4">
         <button class="btn btn-sm" :class="filtroEstado === 'pendiente' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="filtroEstado = 'pendiente'">
             ⏳ Pendientes
@@ -46,7 +46,6 @@
         <button class="btn btn-sm" :class="filtroEstado === 'recibido_faltantes_ajustados' ? 'btn-success fw-bold shadow-sm' : 'btn-outline-success'" @click="filtroEstado = 'recibido_faltantes_ajustados'">
             ✅ Entregados OK
         </button>
-        <!-- Nuevo recuadro para ver pedidos con faltantes o entregas parciales -->
         <button class="btn btn-sm" :class="filtroEstado === 'con_faltantes' ? 'btn-danger fw-bold shadow-sm' : 'btn-outline-danger'" @click="filtroEstado = 'con_faltantes'">
             ⚠️ Con Faltantes (Parciales)
         </button>
@@ -58,7 +57,7 @@
         </button>
     </div>
 
-    <!-- Alertas -->
+    <!-- Alertas Globales -->
     <template x-if="mensajeAlerta">
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <span x-text="mensajeAlerta"></span>
@@ -118,7 +117,6 @@
                                                 </select>
                                             </td>
                                             <td>
-                                                <!-- Indicador visual rápido de faltantes si hubo entrega parcial -->
                                                 <template x-if="calcularFaltantesPedido(p) > 0">
                                                     <span class="badge bg-danger text-white">
                                                         ⚠️ Faltan <span x-text="calcularFaltantesPedido(p)"></span> un.
@@ -162,6 +160,15 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                
+                <!-- Alerta elegante para errores dentro del modal (Reemplaza el alert nativo) -->
+                <template x-if="mensajeErrorModal">
+                    <div class="alert alert-danger alert-dismissible fade show py-2 small mb-3 shadow-sm" role="alert">
+                        <strong class="fw-bold">⚠️ Atención:</strong> <span x-text="mensajeErrorModal"></span>
+                        <button type="button" class="btn-close btn-close-sm py-2" @click="mensajeErrorModal = ''"></button>
+                    </div>
+                </template>
+
                 <div class="row mb-3 bg-light p-3 rounded mx-0 align-items-center">
                     <div class="col-md-6">
                         <p class="mb-1"><strong>Experta:</strong> <span x-text="pedidoSeleccionado?.experto.nombre"></span></p>
@@ -230,6 +237,7 @@ function pedidosApp() {
         pedidoSeleccionado: null,
         itemsAjuste: [],
         mensajeAlerta: '',
+        mensajeErrorModal: '', // <--- Variable para controlar errores limpios dentro del modal
         guardando: false,
         modalInstance: null,
         init() {
@@ -262,7 +270,6 @@ function pedidosApp() {
                 console.error("Error al cargar pedidos:", err);
             }
         },
-        // Calcula si un pedido específico tiene faltantes (suma de (pedido - entregado))
         calcularFaltantesPedido(pedido) {
             let totalFaltantes = 0;
             if (pedido.detalles) {
@@ -323,12 +330,14 @@ function pedidosApp() {
         abrirModal(pedido) {
             this.pedidoSeleccionado = pedido;
             this.itemsAjuste = JSON.parse(JSON.stringify(pedido.detalles));
+            this.mensajeErrorModal = ''; // Limpiamos errores al abrir
             const el = document.getElementById('modalDetalle');
             this.modalInstance = new bootstrap.Modal(el);
             this.modalInstance.show();
         },
         async guardarAjuste() {
             this.guardando = true;
+            this.mensajeErrorModal = ''; // Limpiamos errores previos al intentar guardar
             try {
                 const payload = {
                     items: this.itemsAjuste.map(i => ({
@@ -350,7 +359,8 @@ function pedidosApp() {
                 this.modalInstance.hide();
                 this.cargarPedidos();
             } catch (err) {
-                alert(`Error: ${err.message}`);
+                // ❌ Se reemplazó el alert() nativo por la asignación a la alerta elegante del modal
+                this.mensajeErrorModal = err.message;
             } finally {
                 this.guardando = false;
             }
