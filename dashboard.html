@@ -136,17 +136,24 @@
         </div>
     </div>
 
-    <!-- 2. SECCIÓN: AUDITORÍA DE RED Y ESTRUCTURAS (NUEVO) -->
+    <!-- 2. SECCIÓN: AUDITORÍA DE RED Y ESTRUCTURAS (CON CIERRE MASIVO) -->
     <div x-show="seccionActiva === 'auditoria'" style="display: none;" :style="seccionActiva === 'auditoria' ? 'display: block;' : 'display: none;'">
         <div class="card shadow-sm border-0 p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
                 <div>
                     <h4 class="fw-bold text-dark mb-1">📊 Panel de Auditoría y Estructuras de Red</h4>
-                    <p class="text-muted small mb-0">Supervisión en tiempo real del progreso de líderes, incorporaciones directas y cumplimiento de metas.</p>
+                    <p class="text-muted small mb-0">Supervisión en tiempo real del progreso de líderes, incorporaciones directas y ejecución masiva.</p>
                 </div>
-                <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarAuditoriaRed()">
-                    🔄 Actualizar Auditoría
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarAuditoriaRed()">
+                        🔄 Actualizar
+                    </button>
+                    <!-- BOTÓN DE CIERRE MENSUAL MASIVO -->
+                    <button class="btn btn-success btn-sm fw-bold px-3 shadow-sm" @click="ejecutarCierreMasivo()" :disabled="ejecutandoMasivo">
+                        <span x-show="!ejecutandoMasivo">⚡ Ejecutar Cierre Mensual Masivo</span>
+                        <span x-show="ejecutandoMasivo" class="spinner-border spinner-border-sm"></span>
+                    </button>
+                </div>
             </div>
 
             <!-- Resumen superior de métricas -->
@@ -435,6 +442,7 @@ function dashboardApp() {
         busquedaStock: '',
         cargandoExcel: false,
         cargandoPdf: false,
+        ejecutandoMasivo: false,
         mensajeAlerta: '',
         mensajeError: '',
         
@@ -496,6 +504,33 @@ function dashboardApp() {
                 }
             } catch (err) {
                 console.error("Error al cargar auditoría de red:", err);
+            }
+        },
+        async ejecutarCierreMasivo() {
+            if (!confirm("¿Confirma que desea ejecutar el cierre mensual masivo para todas las líderes calificadas de la red?")) return;
+            
+            this.ejecutandoMasivo = true;
+            this.mensajeAlerta = '';
+            this.mensajeError = '';
+
+            try {
+                const lideres = this.auditoriaData.auditoria_general || [];
+                let procesados = 0;
+
+                for (const lider of lideres) {
+                    if (lider.incorporados_directos >= 10) {
+                        const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual/${lider.id}?unidades_equipo_total=100&unidades_personales_c1=10&unidades_personales_c2=10&facturacion_neta_equipo=350000`;
+                        const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+                        if (res.ok) procesados++;
+                    }
+                }
+
+                this.mensajeAlerta = `¡Cierre mensual masivo completado con éxito! Se liquidaron comisiones para ${procesados} líderes calificadas.`;
+                this.cargarAuditoriaRed();
+            } catch (err) {
+                this.mensajeError = "Error al ejecutar el cierre masivo: " + err.message;
+            } finally {
+                this.ejecutandoMasivo = false;
             }
         },
         get productosFiltradosStock() {
@@ -561,7 +596,7 @@ function dashboardApp() {
                     codigo_postal: '', telefono: '', rol: 'experto', id_patrocinador: null, marca_trabaja: ''
                 };
                 this.marcasSeleccionadas = [];
-                this.cargarAuditoriaRed(); // Actualiza listados y selectores de patrocinadoras
+                this.cargarAuditoriaRed();
             } catch (err) {
                 this.mensajeError = err.message;
             } finally {
