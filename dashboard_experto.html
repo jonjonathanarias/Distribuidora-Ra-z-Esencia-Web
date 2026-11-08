@@ -128,18 +128,21 @@
         </div>
     </div>
 
+    
     <!-- VISTA 2: CARGAR NUEVO PEDIDO -->
     <div x-show="vistaActiva === 'nuevo_pedido'" style="display: none;" :style="vistaActiva === 'nuevo_pedido' ? 'display: block;' : 'display: none;'" class="card shadow-sm border-0 p-4">
         <h4 class="fw-bold text-success mb-3">Armar Nuevo Pedido para la Distribuidora</h4>
-        <p class="text-muted small">Selecciona la empresa, define la fecha límite y agrega los productos que necesitas solicitar.</p>
+        <p class="text-muted small">Selecciona la empresa, define la fecha límite y agrega los productos correspondientes a la marca.</p>
         
         <form @submit.prevent="enviarPedido()">
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Empresa / Marca</label>
-                    <select class="form-select" x-model="nuevoPedido.empresa" required>
-                        <option value="reino">Reino</option>
-                        <option value="marzzan">Sandra Marzzan</option>
+                    <!-- Al cambiar de empresa, limpiamos la selección de producto para evitar mezclas -->
+                    <select class="form-select" x-model="nuevoPedido.empresa_id" @change="cambiarEmpresa()" required>
+                        <option value="1">Reino (ID: 1)</option>
+                        <option value="2">Sandra Marzzan (ID: 2)</option>
+                        <!-- Preparado para futuras empresas si se agregan en el futuro -->
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -153,11 +156,12 @@
             
             <div class="row g-2 mb-3 align-items-end">
                 <div class="col-md-8">
-                    <label class="form-label small">Buscar Producto en Catálogo</label>
+                    <label class="form-label small" x-text="'Buscar Producto en Catálogo (' + (nuevoPedido.empresa_id == '1' ? 'Reino' : 'Sandra Marzzan') + ')'"></label>
                     <select class="form-select" x-model.number="productoSeleccionadoId">
                         <option value="">-- Seleccione un producto --</option>
-                        <template x-for="prod in productosDisponibles" :key="prod.id">
-                            <option :value="prod.id" x-text="prod.nombre + ' ($' + prod.precio_venta + ')'"></option>
+                        <!-- Filtramos en tiempo real según el empresa_id seleccionado -->
+                        <template x-for="prod in productosFiltrados" :key="prod.id">
+                            <option :value="prod.id" x-text="prod.nombre + ' (Stock: ' + prod.stock_actual + ') - $' + prod.precio_venta"></option>
                         </template>
                     </select>
                 </div>
@@ -170,7 +174,7 @@
                 </div>
             </div>
 
-            <!-- Carrito -->
+            <!-- Carrito de items -->
             <div class="table-responsive mb-4">
                 <table class="table table-bordered align-middle">
                     <thead class="table-light small">
@@ -196,7 +200,7 @@
                         </template>
                         <template x-if="nuevoPedido.detalles.length === 0">
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-3">Aún no has agregado productos al pedido.</td>
+                                <td colspan="5" class="text-center text-muted py-3">Aún no has agregado productos de esta marca.</td>
                             </tr>
                         </template>
                     </tbody>
@@ -226,23 +230,17 @@ function expertoDashboardApp() {
         mensajeAlerta: '',
         enviando: false,
         nuevoPedido: {
-            empresa: 'reino',
+            empresa_id: '1',      // Usamos el ID numérico por defecto (1 para Reino)
+            empresa: 'reino',     // Texto compatible con el backend actual
             fecha_limite: '',
             detalles: []
         },
         init() {
-            // Validar sesión antes de cargar
-            if (typeof verificarSesion === 'function') {
-                verificarSesion();
-            }
+            if (typeof verificarSesion === 'function') verificarSesion();
             
             const usr = localStorage.getItem('usuario');
             if (usr) {
-                try {
-                    this.usuario = JSON.parse(usr);
-                } catch(e) {
-                    this.usuario = { nombre: 'Experta' };
-                }
+                try { this.usuario = JSON.parse(usr); } catch(e) { this.usuario = { nombre: 'Experta' }; }
             }
             
             this.cargarMisPedidos();
@@ -254,17 +252,14 @@ function expertoDashboardApp() {
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
-                if (res.ok) {
-                    this.pedidos = data.pedidos || [];
-                } else {
-                    console.error("Error al obtener pedidos:", data);
-                }
+                if (res.ok) this.pedidos = data.pedidos || [];
             } catch (err) {
-                console.error("Error de red al cargar pedidos:", err);
+                console.error("Error al cargar pedidos:", err);
             }
         },
         async cargarProductos() {
             try {
+                // Traemos todos los productos activos; el filtrado se hace en el cliente de forma reactiva
                 const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
                     headers: getAuthHeaders()
                 });
@@ -273,7 +268,22 @@ function expertoDashboardApp() {
                     this.productosDisponibles = data.data || [];
                 }
             } catch (err) {
-                console.error("Error al cargar catálogo de productos:", err);
+                console.error("Error al cargar catálogo:", err);
+            }
+        },
+        // Propiedad computada: Filtra los productos según el empresa_id seleccionado
+        get productosFiltrados() {
+            const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
+            return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
+        },
+        cambiarEmpresa() {
+            // Si cambia de empresa, actualizamos el texto y limpiamos el carrito por seguridad
+            this.nuevoPedido.empresa = (this.nuevoPedido.empresa_id == '1') ? 'reino' : 'marzzan';
+            this.productoSeleccionadoId = '';
+            if (this.nuevoPedido.detalles.length > 0) {
+                if (confirm('Al cambiar de empresa se limpiarán los productos agregados previamente. ¿Desea continuar?')) {
+                    this.nuevoPedido.detalles = [];
+                }
             }
         },
         agregarItemAlCarrito() {
@@ -281,10 +291,7 @@ function expertoDashboardApp() {
             const producto = this.productosDisponibles.find(p => p.id === this.productoSeleccionadoId);
             if (!producto) return;
 
-            const existente = this.nuevoPedido.detalles.features || this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
-            // Corrección segura de búsqueda en array
             const itemExistente = this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
-
             if (itemExistente) {
                 itemExistente.cantidad_solicitada += parseInt(this.cantidadItem);
             } else {
@@ -323,7 +330,7 @@ function expertoDashboardApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al crear el pedido');
 
-                this.mensajeAlerta = `¡Pedido #${data.pedido_id} creado y enviado con éxito a la distribuidora!`;
+                this.mensajeAlerta = `¡Pedido #${data.pedido_id} creado y enviado con éxito!`;
                 this.nuevoPedido.detalles = [];
                 this.vistaActiva = 'mis_pedidos';
                 this.cargarMisPedidos();
