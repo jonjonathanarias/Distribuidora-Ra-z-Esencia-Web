@@ -4,7 +4,7 @@ const CONFIG = {
     // Para cuando despliegues el backend a producción:
     // API_BASE_URL: 'https://api.tu-distribuidora.com'
     //API_BASE_URL: 'http://0.0.0.0:8000'
-    API_BASE_URL:'https://nnsh0cd2-8000.brs.devtunnels.ms/'
+    API_BASE_URL:'https://nnsh0cd2-8000.brs.devtunnels.ms'
 };
 
 function getAuthHeaders() {
