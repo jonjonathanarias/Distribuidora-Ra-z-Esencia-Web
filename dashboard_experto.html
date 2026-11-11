@@ -17,6 +17,7 @@
         <a class="navbar-brand fw-bold" href="#">Panel de Gestión Comercial - Experta</a>
         <div class="d-flex align-items-center gap-3">
             <span class="text-white small" x-text="'Hola, ' + (usuario?.nombre || 'Experta')"></span>
+            <a href="cuenta-corriente.html" class="btn btn-outline-light btn-sm">💳 Cuenta Corriente</a>
             <button class="btn btn-outline-light btn-sm" @click="cerrarSesion()">Cerrar Sesión</button>
         </div>
     </div>
@@ -369,9 +370,15 @@
                     <h4 class="fw-bold text-success mb-1">👥 Mi Red Directa (Equipo de Incorporados)</h4>
                     <p class="text-muted small mb-0">Listado interactivo de las asesoras bajo su patrocinio con acceso directo a comunicación por WhatsApp.</p>
                 </div>
-                <button class="btn btn-outline-success btn-sm fw-semibold" @click="cargarMiEquipo()">
-                    🔄 Actualizar Equipo
-                </button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm fw-semibold" x-show="liderInfo.es_lider" @click="cargarPedidosRed()">
+                        <span x-show="!cargandoPedidosRed">📦 Ver pedidos de mi red</span>
+                        <span x-show="cargandoPedidosRed" class="spinner-border spinner-border-sm"></span>
+                    </button>
+                    <button class="btn btn-outline-success btn-sm fw-semibold" @click="cargarMiEquipo()">
+                        🔄 Actualizar Equipo
+                    </button>
+                </div>
             </div>
 
             <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
@@ -421,6 +428,125 @@
                 </table>
             </div>
         </div>
+
+        <!-- Pedidos de la Red (solo líderes) -->
+        <div class="card shadow-sm border-0 p-4 mt-4" x-show="liderInfo.es_lider">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h4 class="fw-bold text-primary mb-1">📦 Pedidos de mi Red</h4>
+                    <p class="text-muted small mb-0">Pedidos realizados por las expertas patrocinadas directamente por usted.</p>
+                </div>
+                <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarPedidosRed()" :disabled="cargandoPedidosRed">
+                    <span x-show="!cargandoPedidosRed">🔄 Actualizar pedidos</span>
+                    <span x-show="cargandoPedidosRed" class="spinner-border spinner-border-sm"></span>
+                </button>
+            </div>
+
+            <div class="alert alert-warning" x-show="errorPedidosRed" x-text="errorPedidosRed"></div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Experta</th>
+                            <th>Empresa</th>
+                            <th>Modalidad</th>
+                            <th>Fecha límite</th>
+                            <th>Estado</th>
+                            <th class="text-center">Unidades</th>
+                            <th class="text-center">Faltantes</th>
+                            <th class="text-center">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="p in pedidosRed" :key="p.pedido_id">
+                            <tr>
+                                <td class="fw-bold text-secondary" x-text="'#' + p.pedido_id"></td>
+                                <td>
+                                    <div class="fw-semibold text-dark" x-text="p.experto.nombre"></div>
+                                    <small class="text-muted" x-text="p.experto.codigo_integrante"></small>
+                                </td>
+                                <td x-text="p.empresa"></td>
+                                <td>
+                                    <span class="badge"
+                                          :class="p.modalidad === 'facturacion_verde' ? 'bg-success' : 'bg-primary'"
+                                          x-text="p.modalidad === 'facturacion_verde' ? 'Mostrador' : 'Remito azul'"></span>
+                                </td>
+                                <td class="small text-muted" x-text="p.fecha_limite"></td>
+                                <td>
+                                    <span class="badge"
+                                          :class="{
+                                              'bg-warning text-dark': p.estado === 'pendiente',
+                                              'bg-info text-dark': p.estado === 'aprobado',
+                                              'bg-success': p.estado === 'facturado' || p.estado === 'recibido_faltantes_ajustados',
+                                              'bg-danger': p.estado === 'rechazado'
+                                          }"
+                                          x-text="p.estado"></span>
+                                </td>
+                                <td class="text-center fw-semibold" x-text="p.total_unidades"></td>
+                                <td class="text-center fw-semibold" :class="p.total_faltantes > 0 ? 'text-danger' : 'text-success'" x-text="p.total_faltantes"></td>
+                                <td class="text-center">
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            @click="pedidoAbiertoId = (pedidoAbiertoId === p.pedido_id ? null : p.pedido_id)">
+                                        <span x-text="pedidoAbiertoId === p.pedido_id ? 'Ocultar' : 'Ver'"></span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="pedidosRed.length === 0 && !cargandoPedidosRed">
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    No hay pedidos registrados en su red directa.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Detalle del pedido seleccionado -->
+            <div class="card bg-light border-0 mt-3" x-show="pedidoDetalle">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0">
+                            Detalle del pedido #<span x-text="pedidoDetalle ? pedidoDetalle.pedido_id : ''"></span>
+                        </h6>
+                        <button class="btn btn-outline-secondary btn-sm" @click="pedidoAbiertoId = null">Cerrar</button>
+                    </div>
+                    <p class="small text-muted mb-2" x-show="pedidoDetalle">
+                        <span x-text="pedidoDetalle ? pedidoDetalle.experto.nombre : ''"></span>
+                        · <span x-text="pedidoDetalle ? pedidoDetalle.experto.codigo_integrante : ''"></span>
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>SKU</th>
+                                    <th class="text-center">Pedido</th>
+                                    <th class="text-center">Entregado</th>
+                                    <th class="text-center">Faltante</th>
+                                    <th class="text-end">Precio unit.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="d in (pedidoDetalle ? pedidoDetalle.detalles : [])" :key="d.detalle_id">
+                                    <tr>
+                                        <td x-text="d.nombre_producto"></td>
+                                        <td class="text-muted" x-text="d.codigo_sku"></td>
+                                        <td class="text-center" x-text="d.cantidad_pedida"></td>
+                                        <td class="text-center" x-text="d.cantidad_entregada"></td>
+                                        <td class="text-center" :class="d.cantidad_faltante > 0 ? 'text-danger fw-bold' : 'text-success'" x-text="d.cantidad_faltante"></td>
+                                        <td class="text-end" x-text="'$' + d.precio_unitario.toFixed(2)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -442,6 +568,10 @@ function expertoDashboardApp() {
         liderInfo: {},
         equipoDirecto: [],
         totalIncorporados: 0,
+        pedidosRed: [],
+        cargandoPedidosRed: false,
+        errorPedidosRed: '',
+        pedidoAbiertoId: null,
         nuevoPedido: {
             empresa_id: '',
             empresa: '',
@@ -530,11 +660,37 @@ function expertoDashboardApp() {
                     this.liderInfo = data.lider || {};
                     this.equipoDirecto = data.equipo_directo || [];
                     this.totalIncorporados = data.total_incorporados_directos || 0;
+
+                    if (this.liderInfo.es_lider) {
+                        this.cargarPedidosRed();
+                    }
                 } else {
                     throw new Error(data.detail || 'Error al cargar los datos del equipo');
                 }
             } catch (err) {
                 console.error("Error al consultar la red:", err);
+            }
+        },
+        async cargarPedidosRed() {
+            if (this.cargandoPedidosRed) return;
+            this.cargandoPedidosRed = true;
+            this.errorPedidosRed = '';
+
+            try {
+                const usuarioId = this.usuario ? this.usuario.id : 0;
+                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}/pedidos`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'No se pudieron cargar los pedidos de la red');
+
+                this.pedidosRed = data.pedidos || [];
+            } catch (err) {
+                console.error("Error al cargar pedidos de la red:", err);
+                this.errorPedidosRed = err.message;
+                this.pedidosRed = [];
+            } finally {
+                this.cargandoPedidosRed = false;
             }
         },
         obtenerNombreEmpresaSeleccionada() {
@@ -544,6 +700,10 @@ function expertoDashboardApp() {
         get productosFiltrados() {
             const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
             return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
+        },
+        get pedidoDetalle() {
+            if (!this.pedidoAbiertoId) return null;
+            return this.pedidosRed.find(p => p.pedido_id === this.pedidoAbiertoId) || null;
         },
         cambiarEmpresa() {
             const empresaObj = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
