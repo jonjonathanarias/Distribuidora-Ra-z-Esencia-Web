@@ -39,24 +39,57 @@
         
         <!-- Tarjeta de Resumen Financiero y Semáforo -->
         <div class="card-body bg-light border-top border-bottom p-4">
-            <div class="alert alert-warning mb-0" x-show="mensajeError" x-text="mensajeError"></div>
-            <div class="row align-items-center g-3">
-                <div class="col-md-6">
-                    <span class="text-muted small d-block">Saldo Actual en Cuenta</span>
-                    <h2 class="fw-bold mb-0" :class="saldoActual >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + saldoActual.toFixed(2)"></h2>
+            <div class="alert alert-warning mb-3" x-show="mensajeError" x-text="mensajeError"></div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Saldo actual en cuenta</span>
+                        <h3 class="fw-bold mb-0" :class="saldoActual >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + saldoActual.toFixed(2)"></h3>
+                        <span class="badge fs-6 px-2 py-1 mt-2"
+                              :class="saldoActual >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"
+                              x-text="semaforoTexto">
+                        </span>
+                    </div>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <span class="text-muted small d-block">Semáforo Financiero</span>
-                    <span class="badge fs-6 px-3 py-2 mt-1" 
-                          :class="saldoActual >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"
-                          x-text="semaforoTexto">
-                    </span>
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Comisiones a favor</span>
+                        <h3 class="fw-bold text-info mb-0" x-text="'$' + (resumen.comisiones_a_favor || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h3>
+                        <span class="small text-muted">Comisiones por ventas registradas</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Deuda de pedidos pendientes</span>
+                        <h3 class="fw-bold mb-0" :class="(resumen.deuda_pedidos_pendientes || 0) > 0 ? 'text-danger' : 'text-success'" x-text="'$' + (resumen.deuda_pedidos_pendientes || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h3>
+                        <span class="small text-muted" x-text="(resumen.pedidos_pendientes_de_pago || 0) + ' pedido(s) con saldo'"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Total facturado en pedidos</span>
+                        <h4 class="fw-bold mb-0" x-text="'$' + (resumen.total_facturado_pedidos || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Total pagado en pedidos</span>
+                        <h4 class="fw-bold text-success mb-0" x-text="'$' + (resumen.total_pagado_pedidos || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <span class="text-muted small d-block text-uppercase">Balance neto (saldo - deuda)</span>
+                        <h4 class="fw-bold mb-0" :class="(resumen.balance_neto || 0) >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + (resumen.balance_neto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h4>
+                        <span class="small text-muted" x-text="(resumen.balance_neto || 0) >= 0 ? 'A favor de la experta' : 'Saldo a favor de la distribuidora'"></span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Tabla de Historial de Movimientos -->
         <div class="card-body p-0">
+            <h5 class="fw-bold text-secondary px-4 pt-3 mb-2">📄 Historial de Movimientos</h5>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light small text-uppercase">
@@ -102,6 +135,75 @@
             </div>
         </div>
     </div>
+
+    <!-- Pedidos y Estado de Pago -->
+    <div class="card shadow-sm border-0 mb-4" x-show="pedidos.length > 0">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold mb-0 text-primary">📦 Pedidos y Estado de Pago</h5>
+                <span class="small text-muted">Importes facturados, pagos registrados y saldo de cada pedido.</span>
+            </div>
+            <span class="badge bg-primary fs-6 px-3 py-2" x-text="pedidos.length + ' pedido(s)'"></span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase">
+                    <tr>
+                        <th>Pedido</th>
+                        <th>Empresa</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Pagado</th>
+                        <th class="text-end">Saldo</th>
+                        <th class="text-center">Estado de Pago</th>
+                        <th class="text-center">Estado del Pedido</th>
+                        <th class="text-center">Pagos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="p in pedidos" :key="'pedido-' + p.pedido_id">
+                        <tr>
+                            <td class="fw-bold" x-text="'#' + p.pedido_id"></td>
+                            <td><span class="badge bg-secondary" x-text="p.empresa"></span></td>
+                            <td class="text-end fw-bold" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                            <td class="text-end text-success fw-semibold" x-text="'$' + (p.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                            <td class="text-end fw-bold" :class="(p.saldo_pendiente || 0) > 0 ? 'text-danger' : 'text-success'" x-text="'$' + (p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                            <td class="text-center">
+                                <span class="badge" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
+                            </td>
+                            <td class="text-center"><span class="badge bg-light text-dark border" x-text="p.estado"></span></td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-secondary btn-sm" x-show="(p.pagos || []).length > 0"
+                                        @click="pedidoPagosAbiertoId = (pedidoPagosAbiertoId === p.pedido_id ? null : p.pedido_id)">
+                                    <span x-text="pedidoPagosAbiertoId === p.pedido_id ? 'Ocultar' : ((p.pagos || []).length + ' pago(s)')"></span>
+                                </button>
+                                <span class="small text-muted" x-show="(p.pagos || []).length === 0">Sin pagos</span>
+                            </td>
+                        </tr>
+                        <template x-if="pedidoPagosAbiertoId === p.pedido_id">
+                            <tr class="table-light">
+                                <td colspan="8" class="small">
+                                    <strong>Pagos registrados:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        <template x-for="pago in p.pagos" :key="'pago-' + pago.id">
+                                            <li>
+                                                Pago #<span x-text="pago.id"></span> ·
+                                                $<span x-text="pago.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span> ·
+                                                <span class="text-muted" x-text="pago.fecha"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </template>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div x-show="pedidos.length === 0 && expertoId" class="alert alert-info">
+        Esta experta no tiene pedidos registrados todavía.
+    </div>
 </div>
 
 <script>
@@ -113,6 +215,10 @@ function ccApp() {
         saldoActual: 0.00,
         semaforoTexto: '🟢 VERDE (Al día)',
         movimientos: [],
+        pedidos: [],
+        comisiones: [],
+        resumen: {},
+        pedidoPagosAbiertoId: null,
         volverUrl: 'dashboard.html',
         mensajeError: '',
         init() {
@@ -129,7 +235,7 @@ function ccApp() {
         async cargarListaExpertas() {
             try {
                 // El backend devuelve solo las expertas que este usuario puede consultar:
-                // admin -> todas; líder -> ella + su red directa; experta -> solo ella.
+                // admin -> todas; líder -> ella + toda su descendencia recursiva; experta -> solo ella.
                 const res = await fetch(`${CONFIG.API_BASE_URL}/red/mis-expertas`, {
                     headers: getAuthHeaders()
                 });
@@ -168,6 +274,10 @@ function ccApp() {
                     this.saldoActual = data.saldo_actual || 0.00;
                     this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
                     this.movimientos = data.historial_movimientos || [];
+                    this.pedidos = data.pedidos || [];
+                    this.comisiones = data.comisiones || [];
+                    this.resumen = data.resumen_financiero || {};
+                    this.pedidoPagosAbiertoId = null;
                 } else {
                     throw new Error(data.detail || 'No se pudo cargar la cuenta');
                 }
@@ -175,8 +285,29 @@ function ccApp() {
                 console.error(err);
                 this.mensajeError = err.message || 'No se pudo cargar la cuenta corriente.';
                 this.movimientos = [];
+                this.pedidos = [];
+                this.comisiones = [];
+                this.resumen = {};
                 this.saldoActual = 0.00;
             }
+        },
+        estadoPagoTexto(estado) {
+            const textos = {
+                pagado: '✅ Pagado',
+                parcial: '🟡 Pago parcial',
+                pendiente: '🔴 No pagado',
+                sin_importe: '⚪ Sin importe'
+            };
+            return textos[estado] || '⚪ Sin importe';
+        },
+        estadoPagoClase(estado) {
+            const clases = {
+                pagado: 'bg-success text-white',
+                parcial: 'bg-warning text-dark',
+                pendiente: 'bg-danger text-white',
+                sin_importe: 'bg-secondary text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
         },
         async descargarPdf(movimientoId) {
             try {

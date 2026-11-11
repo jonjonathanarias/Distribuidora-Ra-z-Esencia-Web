@@ -89,6 +89,8 @@
                                         <th>Empresa</th>
                                         <th style="width: 220px;">Estado del Ciclo</th>
                                         <th>Control de Cantidades / Faltantes</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-center" style="width: 190px;">Estado de Pago</th>
                                         <th>Fecha Límite</th>
                                         <th class="text-end">Acciones</th>
                                     </tr>
@@ -135,6 +137,19 @@
                                                     <span class="badge bg-success text-white">Completo (0 faltantes)</span>
                                                 </template>
                                             </td>
+                                            <td class="text-end fw-bold text-dark" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                            <td class="text-center">
+                                                <span class="badge" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
+                                                <div class="small text-muted mt-1">
+                                                    Pagado: $<span x-text="(p.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                </div>
+                                                <div class="small" :class="(p.saldo_pendiente || 0) > 0 ? 'text-danger fw-semibold' : 'text-success'">
+                                                    Saldo: $<span x-text="(p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                </div>
+                                                <button class="btn btn-outline-success btn-sm mt-1" x-show="(p.saldo_pendiente || 0) > 0" @click="abrirModalPagos(p)">
+                                                    💵 Registrar pago
+                                                </button>
+                                            </td>
                                             <td class="small text-muted" x-text="p.fecha_limite"></td>
                                             <td class="text-end">
                                                 <button class="btn btn-outline-primary btn-sm fw-semibold" @click="abrirModal(p)">
@@ -178,10 +193,19 @@
                     </div>
                 </template>
 
+                <template x-if="mensajeAdvertenciaModal">
+                    <div class="alert alert-warning py-2 small mb-3 shadow-sm" role="alert">
+                        <strong class="fw-bold">📦 Entrega parcial:</strong>
+                        <div class="mt-1" x-text="mensajeAdvertenciaModal"></div>
+                        <div class="mt-1 text-muted">Puede completar el faltante más adelante enviando solamente lo pendiente.</div>
+                    </div>
+                </template>
+
                 <div class="row mb-3 bg-light p-3 rounded mx-0 align-items-center">
                     <div class="col-md-6">
                         <p class="mb-1"><strong>Experta:</strong> <span x-text="pedidoSeleccionado?.experto.nombre"></span></p>
                         <p class="mb-0"><strong>Código:</strong> <span x-text="pedidoSeleccionado?.experto.codigo_integrante"></span></p>
+                        <p class="mb-0 mt-1"><strong>Total del pedido:</strong> <span class="fw-bold text-dark" x-text="'$' + (pedidoSeleccionado?.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span></p>
                     </div>
                     <div class="col-md-6 text-md-end">
                         <p class="mb-1"><strong>Empresa:</strong> <span class="badge bg-info text-dark" x-text="pedidoSeleccionado?.empresa"></span></p>
@@ -203,6 +227,7 @@
                                 <th class="text-center" style="width: 110px;">Pidió</th>
                                 <th class="text-center" style="width: 110px;">Ya Entregado</th>
                                 <th class="text-center text-danger" style="width: 110px;">Faltante</th>
+                                <th class="text-center text-success" style="width: 110px;">Stock Disp.</th>
                                 <th class="text-center text-primary" style="width: 160px;">Enviar Ahora 📦</th>
                                 <th class="text-end">Precio Unit.</th>
                             </tr>
@@ -218,11 +243,17 @@
                                     <td class="text-center text-success fw-bold" x-text="item.cantidad_entregada || 0"></td>
                                     <td class="text-center fw-bold text-danger" x-text="Math.max(0, item.cantidad_pedida - (item.cantidad_entregada || 0))"></td>
                                     <td class="text-center">
+                                        <span class="badge" :class="(item.stock_actual || 0) > 0 ? 'bg-success' : 'bg-danger'" x-text="item.stock_actual || 0"></span>
+                                    </td>
+                                    <td class="text-center">
                                         <!-- Input para ingresar SOLO las unidades adicionales que se mandan en esta tanda -->
                                         <input type="number" class="form-control form-control-sm text-center fw-bold text-primary" 
                                                x-model.number="item.envio_ahora" 
                                                min="0" 
-                                               :max="Math.max(0, item.cantidad_pedida - (item.cantidad_entregada || 0))">
+                                               :max="Math.min(Math.max(0, item.cantidad_pedida - (item.cantidad_entregada || 0)), item.stock_actual || 0)">
+                                        <div class="small text-muted mt-1" x-show="Math.max(0, item.cantidad_pedida - (item.cantidad_entregada || 0)) > (item.stock_actual || 0)">
+                                            Máx. por stock: <span x-text="item.stock_actual || 0"></span>
+                                        </div>
                                     </td>
                                     <td class="text-end" x-text="'$' + item.precio_unitario.toFixed(2)"></td>
                                 </tr>
@@ -242,6 +273,79 @@
     </div>
 </div>
 
+<!-- Modal de Registro de Pagos por Pedido -->
+<div class="modal fade" id="modalPagos" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" x-show="pedidoPago">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Pagos del Pedido #<span x-text="pedidoPago?.pedido_id"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <template x-if="mensajeErrorPago">
+                    <div class="alert alert-danger py-2 small mb-3" role="alert">
+                        <strong>⚠️ Atención:</strong> <span x-text="mensajeErrorPago"></span>
+                    </div>
+                </template>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <div class="small text-muted text-uppercase">Total del pedido</div>
+                            <div class="fs-5 fw-bold" x-text="'$' + (pedidoPago?.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <div class="small text-muted text-uppercase">Pagado</div>
+                            <div class="fs-5 fw-bold text-success" x-text="'$' + (pedidoPago?.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <div class="small text-muted text-uppercase">Saldo pendiente</div>
+                            <div class="fs-5 fw-bold text-danger" x-text="'$' + (pedidoPago?.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <template x-if="(pedidoPago?.pagos || []).length > 0">
+                    <div class="mb-3">
+                        <h6 class="fw-bold text-secondary">Pagos registrados</h6>
+                        <ul class="list-group list-group-flush small">
+                            <template x-for="pago in pedidoPago.pagos" :key="pago.id">
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span x-text="'Pago #' + pago.id + ' · ' + pago.fecha"></span>
+                                    <span class="fw-bold text-success" x-text="'$' + pago.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold mb-1">Monto a registrar</label>
+                        <input type="number" class="form-control" min="0" step="0.01" x-model.number="pagoMonto" :max="pedidoPago?.saldo_pendiente || 0">
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" @click="pagoMonto = pedidoPago?.saldo_pendiente || 0">
+                            Pagar todo el saldo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success btn-sm fw-semibold px-4" @click="registrarPago()" :disabled="guardandoPago">
+                    <span x-show="!guardandoPago">Registrar pago</span>
+                    <span x-show="guardandoPago" class="spinner-border spinner-border-sm"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function pedidosApp() {
@@ -253,8 +357,14 @@ function pedidosApp() {
         itemsAjuste: [],
         mensajeAlerta: '',
         mensajeErrorModal: '',
+        mensajeAdvertenciaModal: '',
         guardando: false,
         modalInstance: null,
+        pedidoPago: null,
+        pagoMonto: 0,
+        mensajeErrorPago: '',
+        guardandoPago: false,
+        modalPagoInstance: null,
         init() {
             verificarSesion();
             this.cargarPedidos();
@@ -347,23 +457,81 @@ function pedidosApp() {
         },
         abrirModal(pedido) {
             this.pedidoSeleccionado = pedido;
-            // Preparamos los ítems calculando el faltante y sugiriendo enviar lo que resta (o 1)
-            this.itemsAjuste = JSON.parse(JSON.stringify(pedido.detalles)).map(i => {
+            this.itemsAjuste = this.prepararItemsAjuste(pedido.detalles);
+            this.mensajeErrorModal = '';
+            this.mensajeAdvertenciaModal = '';
+            const el = document.getElementById('modalDetalle');
+            this.modalInstance = bootstrap.Modal.getOrCreateInstance(el);
+            this.modalInstance.show();
+        },
+        prepararItemsAjuste(detalles) {
+            // Sugerimos enviar el faltante, pero nunca más de lo que hay en stock.
+            return JSON.parse(JSON.stringify(detalles || [])).map(i => {
                 const entregado = i.cantidad_entregada || 0;
                 const falta = Math.max(0, i.cantidad_pedida - entregado);
+                const stock = i.stock_actual || 0;
                 return {
                     ...i,
-                    envio_ahora: falta > 0 ? falta : 0 // Sugiere por defecto completar todo el faltante actual
+                    envio_ahora: Math.min(falta, stock)
                 };
             });
-            this.mensajeErrorModal = '';
-            const el = document.getElementById('modalDetalle');
-            this.modalInstance = new bootstrap.Modal(el);
-            this.modalInstance.show();
+        },
+        estadoPagoTexto(estado) {
+            const textos = {
+                pagado: '✅ Pagado',
+                parcial: '🟡 Pago parcial',
+                pendiente: '🔴 No pagado',
+                sin_importe: '⚪ Sin importe'
+            };
+            return textos[estado] || '⚪ Sin importe';
+        },
+        estadoPagoClase(estado) {
+            const clases = {
+                pagado: 'bg-success text-white',
+                parcial: 'bg-warning text-dark',
+                pendiente: 'bg-danger text-white',
+                sin_importe: 'bg-secondary text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
+        },
+        abrirModalPagos(pedido) {
+            this.pedidoPago = pedido;
+            this.pagoMonto = pedido.saldo_pendiente || 0;
+            this.mensajeErrorPago = '';
+            const el = document.getElementById('modalPagos');
+            this.modalPagoInstance = bootstrap.Modal.getOrCreateInstance(el);
+            this.modalPagoInstance.show();
+        },
+        async registrarPago() {
+            if (!this.pedidoPago) return;
+            this.guardandoPago = true;
+            this.mensajeErrorPago = '';
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${this.pedidoPago.pedido_id}/pagos`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ monto: parseFloat(this.pagoMonto) || 0 })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al registrar el pago');
+
+                this.pedidoPago = { ...this.pedidoPago, ...data.pedido };
+                this.pagoMonto = data.pedido.saldo_pendiente || 0;
+                this.mensajeAlerta = data.message;
+                await this.cargarPedidos();
+                if (data.pedido.estado_pago === 'pagado') {
+                    this.modalPagoInstance.hide();
+                }
+            } catch (err) {
+                this.mensajeErrorPago = err.message;
+            } finally {
+                this.guardandoPago = false;
+            }
         },
         async guardarAjuste() {
             this.guardando = true;
             this.mensajeErrorModal = '';
+            this.mensajeAdvertenciaModal = '';
             try {
                 const payload = {
                     items: this.itemsAjuste.map(i => ({
@@ -381,9 +549,23 @@ function pedidosApp() {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Error al ajustar el pedido');
 
-                this.mensajeAlerta = `¡Entrega de faltantes registrada con éxito! Stock descontado y acumulado.`;
-                this.modalInstance.hide();
-                this.cargarPedidos();
+                this.mensajeAlerta = data.message;
+                const advertencias = data.advertencias || [];
+
+                if (advertencias.length > 0) {
+                    // Hubo stock insuficiente: mostramos qué se envió y qué queda pendiente.
+                    this.mensajeAdvertenciaModal = advertencias.join(' ');
+                    this.pedidoSeleccionado = {
+                        ...this.pedidoSeleccionado,
+                        ...data.pedido,
+                        experto: this.pedidoSeleccionado.experto
+                    };
+                    this.itemsAjuste = this.prepararItemsAjuste(data.pedido.detalles);
+                } else {
+                    this.modalInstance.hide();
+                }
+
+                await this.cargarPedidos();
             } catch (err) {
                 this.mensajeErrorModal = err.message;
             } finally {

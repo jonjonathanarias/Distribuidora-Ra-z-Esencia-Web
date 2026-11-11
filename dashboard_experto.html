@@ -203,7 +203,35 @@
                         </div>
                         <div class="card-body">
                             <p class="text-muted small mb-3">Fecha límite del ciclo: <strong x-text="p.fecha_limite"></strong></p>
-                            
+
+                            <!-- Resumen financiero del pedido -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-6 col-md-3">
+                                    <div class="border rounded p-2 bg-light h-100">
+                                        <div class="small text-muted">Total pedido</div>
+                                        <div class="fw-bold" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="border rounded p-2 bg-light h-100">
+                                        <div class="small text-muted">Pagado</div>
+                                        <div class="fw-bold text-success" x-text="'$' + (p.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="border rounded p-2 bg-light h-100">
+                                        <div class="small text-muted">Saldo pendiente</div>
+                                        <div class="fw-bold" :class="(p.saldo_pendiente || 0) > 0 ? 'text-danger' : 'text-success'" x-text="'$' + (p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="border rounded p-2 bg-light h-100">
+                                        <div class="small text-muted">Estado de pago</div>
+                                        <span class="badge" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <h6 class="fw-bold text-secondary mb-2">Detalle de Artículos y Faltantes:</h6>
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle mb-0">
@@ -233,7 +261,7 @@
                                                         <span class="text-muted small">Ninguno</span>
                                                     </template>
                                                 </td>
-                                                <td class="text-end fw-semibold" x-text="'$' + (item.precio_unitario * item.cantidad_entregada).toFixed(2)"></td>
+                                                <td class="text-end fw-semibold" x-text="'$' + ((item.subtotal !== undefined ? item.subtotal : item.precio_unitario * item.cantidad_pedida) || 0).toFixed(2)"></td>
                                             </tr>
                                         </template>
                                         <template x-if="!p.detalles || p.detalles.length === 0">
@@ -242,6 +270,12 @@
                                             </tr>
                                         </template>
                                     </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="4" class="text-end fw-bold text-uppercase small">Total del pedido</td>
+                                            <td class="text-end fw-bold text-success" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
@@ -331,6 +365,13 @@
                             </tr>
                         </template>
                     </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold text-uppercase small">Total del pedido</td>
+                            <td class="text-end fw-bold text-success fs-6" x-text="'$' + totalNuevoPedido.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
 
@@ -359,6 +400,10 @@
                 <div class="text-md-end bg-light p-3 rounded border">
                     <span class="text-muted small d-block">Incorporados en Red Directa</span>
                     <h2 class="fw-bold text-success mb-0" x-text="totalIncorporados"></h2>
+                </div>
+                <div class="text-md-end bg-light p-3 rounded border">
+                    <span class="text-muted small d-block">Red Completa (Recursiva)</span>
+                    <h2 class="fw-bold text-primary mb-0" x-text="totalRedCompleta"></h2>
                 </div>
             </div>
         </div>
@@ -429,12 +474,56 @@
             </div>
         </div>
 
+        <!-- Red Completa / Descendencia Recursiva -->
+        <div class="card shadow-sm border-0 p-4 mt-4" x-show="redCompleta.length > 0">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h4 class="fw-bold text-primary mb-1">🌐 Mi Red Completa (Descendencia Recursiva)</h4>
+                    <p class="text-muted small mb-0">Incluye hijas, nietas y toda la descendencia de su red, no solo las incorporadas directas.</p>
+                </div>
+                <span class="badge bg-primary fs-6 px-3 py-2" x-text="redCompleta.length + ' integrante(s)'"></span>
+            </div>
+            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                <table class="table table-bordered table-striped align-middle mb-0">
+                    <thead class="table-light small sticky-top">
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre y Apellido</th>
+                            <th>Localidad / Barrio</th>
+                            <th class="text-center">Marca</th>
+                            <th class="text-center">Contacto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="inc in redCompleta" :key="'red-' + inc.id">
+                            <tr>
+                                <td class="fw-bold text-secondary" x-text="inc.codigo_integrante"></td>
+                                <td class="fw-semibold text-dark" x-text="inc.nombre"></td>
+                                <td x-text="inc.barrio ? (inc.barrio + ' (' + inc.localidad + ')') : inc.localidad"></td>
+                                <td class="text-center">
+                                    <span class="badge bg-info text-dark" x-text="inc.marca_trabaja || 'Ambas'"></span>
+                                </td>
+                                <td class="text-center">
+                                    <template x-if="inc.whatsapp_link && inc.whatsapp_link !== '#'">
+                                        <a :href="inc.whatsapp_link" target="_blank" class="btn btn-success btn-sm">💬 WhatsApp</a>
+                                    </template>
+                                    <template x-if="!inc.whatsapp_link || inc.whatsapp_link === '#'">
+                                        <span class="text-muted small">Sin teléfono</span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Pedidos de la Red (solo líderes) -->
         <div class="card shadow-sm border-0 p-4 mt-4" x-show="liderInfo.es_lider">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
                     <h4 class="fw-bold text-primary mb-1">📦 Pedidos de mi Red</h4>
-                    <p class="text-muted small mb-0">Pedidos realizados por las expertas patrocinadas directamente por usted.</p>
+                    <p class="text-muted small mb-0">Pedidos realizados por toda su red: hijas, nietas y demás descendencia.</p>
                 </div>
                 <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarPedidosRed()" :disabled="cargandoPedidosRed">
                     <span x-show="!cargandoPedidosRed">🔄 Actualizar pedidos</span>
@@ -456,6 +545,8 @@
                             <th>Estado</th>
                             <th class="text-center">Unidades</th>
                             <th class="text-center">Faltantes</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-center">Pago</th>
                             <th class="text-center">Detalle</th>
                         </tr>
                     </thead>
@@ -486,6 +577,11 @@
                                 </td>
                                 <td class="text-center fw-semibold" x-text="p.total_unidades"></td>
                                 <td class="text-center fw-semibold" :class="p.total_faltantes > 0 ? 'text-danger' : 'text-success'" x-text="p.total_faltantes"></td>
+                                <td class="text-end fw-bold" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                <td class="text-center">
+                                    <span class="badge" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
+                                    <div class="small text-muted" x-show="(p.saldo_pendiente || 0) > 0" x-text="'Saldo: $' + (p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                </td>
                                 <td class="text-center">
                                     <button class="btn btn-outline-secondary btn-sm"
                                             @click="pedidoAbiertoId = (pedidoAbiertoId === p.pedido_id ? null : p.pedido_id)">
@@ -496,7 +592,7 @@
                         </template>
                         <template x-if="pedidosRed.length === 0 && !cargandoPedidosRed">
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">
+                                <td colspan="11" class="text-center text-muted py-4">
                                     No hay pedidos registrados en su red directa.
                                 </td>
                             </tr>
@@ -517,6 +613,12 @@
                     <p class="small text-muted mb-2" x-show="pedidoDetalle">
                         <span x-text="pedidoDetalle ? pedidoDetalle.experto.nombre : ''"></span>
                         · <span x-text="pedidoDetalle ? pedidoDetalle.experto.codigo_integrante : ''"></span>
+                    </p>
+                    <p class="small mb-2" x-show="pedidoDetalle">
+                        <strong>Total:</strong> $<span x-text="(pedidoDetalle?.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                        · <strong>Pagado:</strong> $<span x-text="(pedidoDetalle?.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                        · <strong>Saldo:</strong> $<span x-text="(pedidoDetalle?.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                        <span class="badge ms-2" :class="estadoPagoClase(pedidoDetalle?.estado_pago)" x-text="estadoPagoTexto(pedidoDetalle?.estado_pago)"></span>
                     </p>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
@@ -568,6 +670,8 @@ function expertoDashboardApp() {
         liderInfo: {},
         equipoDirecto: [],
         totalIncorporados: 0,
+        redCompleta: [],
+        totalRedCompleta: 0,
         pedidosRed: [],
         cargandoPedidosRed: false,
         errorPedidosRed: '',
@@ -660,6 +764,8 @@ function expertoDashboardApp() {
                     this.liderInfo = data.lider || {};
                     this.equipoDirecto = data.equipo_directo || [];
                     this.totalIncorporados = data.total_incorporados_directos || 0;
+                    this.redCompleta = data.red_completa || [];
+                    this.totalRedCompleta = data.total_red_completa || 0;
 
                     if (this.liderInfo.es_lider) {
                         this.cargarPedidosRed();
@@ -693,6 +799,24 @@ function expertoDashboardApp() {
                 this.cargandoPedidosRed = false;
             }
         },
+        estadoPagoTexto(estado) {
+            const textos = {
+                pagado: '✅ Pagado',
+                parcial: '🟡 Pago parcial',
+                pendiente: '🔴 No pagado',
+                sin_importe: '⚪ Sin importe'
+            };
+            return textos[estado] || '⚪ Sin importe';
+        },
+        estadoPagoClase(estado) {
+            const clases = {
+                pagado: 'bg-success text-white',
+                parcial: 'bg-warning text-dark',
+                pendiente: 'bg-danger text-white',
+                sin_importe: 'bg-secondary text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
+        },
         obtenerNombreEmpresaSeleccionada() {
             const emp = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
             return emp ? emp.nombre : '';
@@ -700,6 +824,12 @@ function expertoDashboardApp() {
         get productosFiltrados() {
             const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
             return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
+        },
+        get totalNuevoPedido() {
+            return this.nuevoPedido.detalles.reduce(
+                (acc, item) => acc + (item.precio_unitario || 0) * (item.cantidad_solicitada || 0),
+                0
+            );
         },
         get pedidoDetalle() {
             if (!this.pedidoAbiertoId) return null;

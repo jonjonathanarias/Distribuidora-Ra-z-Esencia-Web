@@ -24,6 +24,42 @@
         <span class="badge bg-secondary fs-6" x-text="'Total Pedidos: ' + pedidos.length"></span>
     </div>
 
+    <!-- Resumen financiero de todos mis pedidos -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="small text-muted text-uppercase">Total facturado</div>
+                    <div class="fs-5 fw-bold" x-text="'$' + totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="small text-muted text-uppercase">Pagado</div>
+                    <div class="fs-5 fw-bold text-success" x-text="'$' + totalPagado.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="small text-muted text-uppercase">Saldo pendiente</div>
+                    <div class="fs-5 fw-bold text-danger" x-text="'$' + totalSaldo.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="small text-muted text-uppercase">Pedidos con saldo</div>
+                    <div class="fs-5 fw-bold text-warning" x-text="pedidosConSaldo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Listado de pedidos propios -->
     <div class="row g-4">
         <template x-for="p in pedidos" :key="p.pedido_id">
@@ -33,6 +69,7 @@
                         <div>
                             <h5 class="fw-bold mb-0 text-dark" x-text="'Pedido #' + p.pedido_id"></h5>
                             <span class="badge bg-info text-dark mt-1" x-text="'Empresa: ' + p.empresa"></span>
+                            <span class="badge mt-1 ms-1" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
                         </div>
                         <div>
                             <span class="badge fs-6 px-3 py-2"
@@ -47,7 +84,34 @@
                     </div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">Fecha límite del ciclo: <strong x-text="p.fecha_limite"></strong></p>
-                        
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="small text-muted">Total pedido</div>
+                                    <div class="fw-bold" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="small text-muted">Pagado</div>
+                                    <div class="fw-bold text-success" x-text="'$' + (p.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="small text-muted">Saldo pendiente</div>
+                                    <div class="fw-bold" :class="(p.saldo_pendiente || 0) > 0 ? 'text-danger' : 'text-success'" x-text="'$' + (p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="small text-muted">Faltantes</div>
+                                    <div class="fw-bold" :class="(p.total_faltantes || 0) > 0 ? 'text-danger' : 'text-success'" x-text="(p.total_faltantes || 0) + ' un.'"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <h6 class="fw-bold text-secondary mb-2">Detalle de Artículos:</h6>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered align-middle mb-0">
@@ -77,10 +141,16 @@
                                                     <span class="text-muted small">Ninguno</span>
                                                 </template>
                                             </td>
-                                            <td class="text-end fw-semibold" x-text="'$' + (item.precio_unitario * item.cantidad_entregada).toFixed(2)"></td>
+                                            <td class="text-end fw-semibold" x-text="'$' + ((item.subtotal !== undefined ? item.subtotal : item.precio_unitario * item.cantidad_pedida) || 0).toFixed(2)"></td>
                                         </tr>
                                     </template>
                                 </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="4" class="text-end fw-bold text-uppercase small">Total del pedido</td>
+                                        <td class="text-end fw-bold text-success" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -102,6 +172,36 @@
 function misPedidosApp() {
     return {
         pedidos: [],
+        get totalFacturado() {
+            return this.pedidos.reduce((acc, p) => acc + (p.total || 0), 0);
+        },
+        get totalPagado() {
+            return this.pedidos.reduce((acc, p) => acc + (p.monto_pagado || 0), 0);
+        },
+        get totalSaldo() {
+            return this.pedidos.reduce((acc, p) => acc + (p.saldo_pendiente || 0), 0);
+        },
+        get pedidosConSaldo() {
+            return this.pedidos.filter(p => (p.saldo_pendiente || 0) > 0.009).length;
+        },
+        estadoPagoTexto(estado) {
+            const textos = {
+                pagado: '✅ Pagado',
+                parcial: '🟡 Pago parcial',
+                pendiente: '🔴 No pagado',
+                sin_importe: '⚪ Sin importe'
+            };
+            return textos[estado] || '⚪ Sin importe';
+        },
+        estadoPagoClase(estado) {
+            const clases = {
+                pagado: 'bg-success text-white',
+                parcial: 'bg-warning text-dark',
+                pendiente: 'bg-danger text-white',
+                sin_importe: 'bg-secondary text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
+        },
         init() {
             verificarSesion();
             this.cargarMisPedidos();
