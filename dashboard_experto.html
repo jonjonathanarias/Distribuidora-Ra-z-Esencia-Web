@@ -192,13 +192,8 @@
                             </div>
                             <div>
                                 <span class="badge fs-6 px-3 py-2"
-                                      :class="{
-                                          'bg-warning text-dark': p.estado === 'pendiente',
-                                          'bg-info text-dark': p.estado === 'aprobado',
-                                          'bg-primary text-white': p.estado === 'facturado',
-                                          'bg-success text-white': p.estado === 'recibido_faltantes_ajustados',
-                                          'bg-danger text-white': p.estado === 'rechazado'
-                                      }" x-text="'Estado: ' + p.estado.toUpperCase()"></span>
+                                      :class="estadoPedidoClase(p.estado)"
+                                      x-text="'Estado: ' + estadoPedidoTexto(p.estado)"></span>
                             </div>
                         </div>
                         <div class="card-body">
@@ -323,9 +318,12 @@
                     <select class="form-select" x-model.number="productoSeleccionadoId">
                         <option value="">-- Seleccione un producto --</option>
                         <template x-for="prod in productosFiltrados" :key="prod.id">
-                            <option :value="prod.id" x-text="prod.nombre + ' (Stock: ' + prod.stock_actual + ') - $' + prod.precio_venta"></option>
+                            <option :value="prod.id" x-text="prod.nombre + ' (' + (prod.bajo_pedido ? 'Disponible bajo pedido' : 'Stock: ' + prod.stock_disponible) + ') - $' + (prod.precio_unitario ?? prod.precio_venta)"></option>
                         </template>
                     </select>
+                    <div class="form-text text-warning" x-show="productoSeleccionado && productoSeleccionado.bajo_pedido">
+                        ⏳ Disponible bajo pedido: se enviará cuando ingrese stock.
+                    </div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small">Cantidad</label>
@@ -567,13 +565,8 @@
                                 <td class="small text-muted" x-text="p.fecha_limite"></td>
                                 <td>
                                     <span class="badge"
-                                          :class="{
-                                              'bg-warning text-dark': p.estado === 'pendiente',
-                                              'bg-info text-dark': p.estado === 'aprobado',
-                                              'bg-success': p.estado === 'facturado' || p.estado === 'recibido_faltantes_ajustados',
-                                              'bg-danger': p.estado === 'rechazado'
-                                          }"
-                                          x-text="p.estado"></span>
+                                          :class="estadoPedidoClase(p.estado)"
+                                          x-text="estadoPedidoTexto(p.estado)"></span>
                                 </td>
                                 <td class="text-center fw-semibold" x-text="p.total_unidades"></td>
                                 <td class="text-center fw-semibold" :class="p.total_faltantes > 0 ? 'text-danger' : 'text-success'" x-text="p.total_faltantes"></td>
@@ -817,6 +810,31 @@ function expertoDashboardApp() {
             };
             return clases[estado] || 'bg-secondary text-white';
         },
+        estadoPedidoTexto(estado) {
+            const textos = {
+                borrador: '📝 Borrador',
+                pendiente: '⏳ Pendiente',
+                aprobado: '📋 Aprobado',
+                entrega_parcial: '⚠️ Entrega parcial',
+                entregado: '✅ Entregado',
+                facturado: '📄 Facturado',
+                rechazado: '❌ Rechazado',
+                recibido_faltantes_ajustados: '✅ Entregado'
+            };
+            return textos[estado] || estado || '-';
+        },
+        estadoPedidoClase(estado) {
+            const clases = {
+                borrador: 'bg-secondary text-white',
+                pendiente: 'bg-warning text-dark',
+                aprobado: 'bg-info text-dark',
+                entrega_parcial: 'bg-warning text-dark',
+                entregado: 'bg-success text-white',
+                facturado: 'bg-primary text-white',
+                rechazado: 'bg-danger text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
+        },
         obtenerNombreEmpresaSeleccionada() {
             const emp = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
             return emp ? emp.nombre : '';
@@ -824,6 +842,10 @@ function expertoDashboardApp() {
         get productosFiltrados() {
             const empresaIdNum = parseInt(this.nuevoPedido.empresa_id);
             return this.productosDisponibles.filter(p => p.empresa_id === empresaIdNum);
+        },
+        get productoSeleccionado() {
+            if (!this.productoSeleccionadoId) return null;
+            return this.productosDisponibles.find(p => p.id === parseInt(this.productoSeleccionadoId)) || null;
         },
         get totalNuevoPedido() {
             return this.nuevoPedido.detalles.reduce(
@@ -838,7 +860,7 @@ function expertoDashboardApp() {
         cambiarEmpresa() {
             const empresaObj = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
             if (empresaObj) {
-                this.nuevoPedido.empresa = empresaObj.nombre.toLowerCase();
+                this.nuevoPedido.empresa = empresaObj.slug || empresaObj.nombre.toLowerCase();
             }
 
             this.productoSeleccionadoId = '';
@@ -853,6 +875,7 @@ function expertoDashboardApp() {
             const producto = this.productosDisponibles.find(p => p.id === parseInt(this.productoSeleccionadoId));
             if (!producto) return;
 
+            const precio = Number(producto.precio_unitario ?? producto.precio_venta ?? 0);
             const itemExistente = this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
             if (itemExistente) {
                 itemExistente.cantidad_solicitada += parseInt(this.cantidadItem);
@@ -861,9 +884,11 @@ function expertoDashboardApp() {
                     producto_id: producto.id,
                     nombre: producto.nombre,
                     cantidad_solicitada: parseInt(this.cantidadItem),
-                    precio_unitario: producto.precio_venta
+                    precio_unitario: precio,
+                    bajo_pedido: !!producto.bajo_pedido
                 });
             }
+            this.mensajeError = '';
             this.productoSeleccionadoId = '';
             this.cantidadItem = 1;
         },
@@ -893,6 +918,9 @@ function expertoDashboardApp() {
                 if (!res.ok) throw new Error(data.detail || 'Error al crear el pedido');
 
                 this.mensajeAlerta = `¡Pedido #${data.pedido_id} creado y enviado con éxito!`;
+                if (Array.isArray(data.advertencias) && data.advertencias.length > 0) {
+                    this.mensajeAlerta += ' ' + data.advertencias.map(a => a.mensaje).join(' ');
+                }
                 this.nuevoPedido.detalles = [];
                 this.vistaActiva = 'mis_pedidos';
                 this.cargarMisPedidos();

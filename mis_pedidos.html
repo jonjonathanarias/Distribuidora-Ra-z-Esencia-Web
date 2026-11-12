@@ -73,13 +73,8 @@
                         </div>
                         <div>
                             <span class="badge fs-6 px-3 py-2"
-                                  :class="{
-                                      'bg-warning text-dark': p.estado === 'pendiente',
-                                      'bg-info text-dark': p.estado === 'aprobado',
-                                      'bg-primary text-white': p.estado === 'facturado',
-                                      'bg-success text-white': p.estado === 'recibido_faltantes_ajustados',
-                                      'bg-danger text-white': p.estado === 'rechazado'
-                                  }" x-text="'Estado: ' + p.estado.toUpperCase()"></span>
+                                  :class="estadoClase(p.estado)"
+                                  x-text="'Estado: ' + estadoTexto(p.estado)"></span>
                         </div>
                     </div>
                     <div class="card-body">
@@ -199,6 +194,31 @@ function misPedidosApp() {
                 parcial: 'bg-warning text-dark',
                 pendiente: 'bg-danger text-white',
                 sin_importe: 'bg-secondary text-white'
+            };
+            return clases[estado] || 'bg-secondary text-white';
+        },
+        estadoTexto(estado) {
+            const textos = {
+                borrador: '📝 BORRADOR',
+                pendiente: '⏳ PENDIENTE',
+                aprobado: '📋 APROBADO',
+                entrega_parcial: '⚠️ ENTREGA PARCIAL',
+                entregado: '✅ ENTREGADO',
+                facturado: '📄 FACTURADO',
+                rechazado: '❌ RECHAZADO',
+                recibido_faltantes_ajustados: '✅ ENTREGADO'
+            };
+            return textos[estado] || (estado || '').toUpperCase();
+        },
+        estadoClase(estado) {
+            const clases = {
+                borrador: 'bg-secondary text-white',
+                pendiente: 'bg-warning text-dark',
+                aprobado: 'bg-info text-dark',
+                entrega_parcial: 'bg-warning text-dark',
+                entregado: 'bg-success text-white',
+                facturado: 'bg-primary text-white',
+                rechazado: 'bg-danger text-white'
             };
             return clases[estado] || 'bg-secondary text-white';
         },

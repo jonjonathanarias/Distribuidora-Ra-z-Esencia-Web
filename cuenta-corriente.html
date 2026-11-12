@@ -170,7 +170,7 @@
                             <td class="text-center">
                                 <span class="badge" :class="estadoPagoClase(p.estado_pago)" x-text="estadoPagoTexto(p.estado_pago)"></span>
                             </td>
-                            <td class="text-center"><span class="badge bg-light text-dark border" x-text="p.estado"></span></td>
+                            <td class="text-center"><span class="badge" :class="estadoPedidoClase(p.estado)" x-text="estadoPedidoTexto(p.estado)"></span></td>
                             <td class="text-center">
                                 <button class="btn btn-outline-secondary btn-sm" x-show="(p.pagos || []).length > 0"
                                         @click="pedidoPagosAbiertoId = (pedidoPagosAbiertoId === p.pedido_id ? null : p.pedido_id)">
@@ -308,6 +308,31 @@ function ccApp() {
                 sin_importe: 'bg-secondary text-white'
             };
             return clases[estado] || 'bg-secondary text-white';
+        },
+        estadoPedidoTexto(estado) {
+            const textos = {
+                borrador: '📝 Borrador',
+                pendiente: '⏳ Pendiente',
+                aprobado: '📋 Aprobado',
+                entrega_parcial: '⚠️ Entrega parcial',
+                entregado: '✅ Entregado',
+                facturado: '📄 Facturado',
+                rechazado: '❌ Rechazado',
+                recibido_faltantes_ajustados: '✅ Entregado'
+            };
+            return textos[estado] || estado || '-';
+        },
+        estadoPedidoClase(estado) {
+            const clases = {
+                borrador: 'bg-secondary text-white',
+                pendiente: 'bg-warning text-dark',
+                aprobado: 'bg-info text-dark',
+                entrega_parcial: 'bg-warning text-dark',
+                entregado: 'bg-success text-white',
+                facturado: 'bg-primary text-white',
+                rechazado: 'bg-danger text-white'
+            };
+            return clases[estado] || 'bg-light text-dark border';
         },
         async descargarPdf(movimientoId) {
             try {
