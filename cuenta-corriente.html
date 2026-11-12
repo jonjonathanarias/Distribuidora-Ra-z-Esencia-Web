@@ -8,6 +8,12 @@
     <link href="css/style.css" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="js/config.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .master-scroll { max-height: 520px; overflow-y: auto; }
+        .modal-overlay { position: fixed; inset: 0; z-index: 1080; background: rgba(15, 23, 42, .55); overflow-y: auto; }
+        .modal-card { max-width: 560px; }
+    </style>
 </head>
 <body class="bg-light" x-data="ccApp()" x-init="init()">
 
@@ -19,8 +25,171 @@
 </nav>
 
 <div class="container mb-5">
+    <!-- ============================================================ -->
+    <!-- PANEL MAESTRO ADMIN: búsqueda, filtros, semáforo y paginación -->
+    <!-- ============================================================ -->
+    <div class="card shadow-sm border-0 mb-4" x-show="esAdmin" x-cloak>
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold mb-0 text-primary">🏦 Tabla Maestra de Cuentas Corrientes</h5>
+                    <span class="small text-muted">Búsqueda, filtros, semáforo y acceso rápido a cada cuenta.</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarMaster(master.page)" :disabled="masterCargando">
+                        <span x-show="!masterCargando">🔄 Actualizar</span>
+                        <span x-show="masterCargando">Cargando…</span>
+                    </button>
+                    <button class="btn btn-success btn-sm fw-semibold" @click="abrirAsentarPago(null)">💵 Asentar Pago</button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body bg-light border-top border-bottom">
+            <div class="alert alert-danger py-2 mb-3" x-show="masterError" x-text="masterError"></div>
+            <div class="row g-2 mb-3">
+                <div class="col-lg-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Buscar</label>
+                    <input type="search" class="form-control form-control-sm" placeholder="Nombre, DNI, código o email"
+                           x-model="masterFiltros.buscar" @input.debounce.400ms="cargarMaster(1)">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Semáforo</label>
+                    <select class="form-select form-select-sm" x-model="masterFiltros.semaforo" @change="cargarMaster(1)">
+                        <option value="">Todos</option>
+                        <option value="verde">🟢 Al día</option>
+                        <option value="rojo">🔴 Deudoras</option>
+                    </select>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Orden</label>
+                    <select class="form-select form-select-sm" x-model="masterFiltros.orden" @change="cargarMaster(1)">
+                        <option value="saldo_asc">Saldo (menor primero)</option>
+                        <option value="saldo_desc">Saldo (mayor primero)</option>
+                        <option value="nombre">Nombre</option>
+                        <option value="reciente">Último movimiento</option>
+                    </select>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Filas</label>
+                    <select class="form-select form-select-sm" x-model.number="masterFiltros.limit" @change="cargarMaster(1)">
+                        <option :value="10">10</option>
+                        <option :value="25">25</option>
+                        <option :value="50">50</option>
+                    </select>
+                </div>
+                <div class="col-6 col-lg-2 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="soloActivos"
+                               x-model="masterFiltros.solo_activos" @change="cargarMaster(1)">
+                        <label class="form-check-label small" for="soloActivos">Solo activas</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-lg-3">
+                    <div class="bg-white border rounded p-2 h-100">
+                        <span class="text-muted small d-block text-uppercase">Expertas</span>
+                        <span class="fw-bold fs-5" x-text="master.resumen.total_expertas || 0"></span>
+                        <span class="small text-danger ms-1"
+                              x-text="'(' + (master.resumen.expertas_deudoras || 0) + ' deudoras)'"></span>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="bg-white border rounded p-2 h-100">
+                        <span class="text-muted small d-block text-uppercase">Saldo neto</span>
+                        <span class="fw-bold fs-5"
+                              :class="(master.resumen.saldo_neto || 0) >= 0 ? 'text-success' : 'text-danger'"
+                              x-text="money(master.resumen.saldo_neto)"></span>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="bg-white border rounded p-2 h-100">
+                        <span class="text-muted small d-block text-uppercase">Total facturado</span>
+                        <span class="fw-bold fs-5" x-text="money(master.resumen.total_facturado)"></span>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="bg-white border rounded p-2 h-100">
+                        <span class="text-muted small d-block text-uppercase">Total pagado</span>
+                        <span class="fw-bold fs-5 text-success" x-text="money(master.resumen.total_pagado)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive master-scroll">
+                <table class="table table-sm table-hover align-middle bg-white mb-0">
+                    <thead class="table-light small text-uppercase">
+                        <tr>
+                            <th>Experta</th>
+                            <th class="text-end">Saldo</th>
+                            <th class="text-end">Facturado</th>
+                            <th class="text-end">Pagado</th>
+                            <th class="text-center">Semáforo</th>
+                            <th class="text-center">Último mov.</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="fila in master.data" :key="'master-' + fila.id">
+                            <tr :class="String(fila.id) === String(expertoId) ? 'table-primary' : ''">
+                                <td>
+                                    <div class="fw-semibold" x-text="fila.nombre"></div>
+                                    <div class="small text-muted">
+                                        <span x-text="'DNI ' + (fila.dni || '-')"></span>
+                                        <span x-text="fila.codigo_integrante ? (' · ' + fila.codigo_integrante) : ''"></span>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold"
+                                    :class="fila.saldo >= 0 ? 'text-success' : 'text-danger'"
+                                    x-text="money(fila.saldo)"></td>
+                                <td class="text-end" x-text="money(fila.total_facturado)"></td>
+                                <td class="text-end text-success" x-text="money(fila.total_pagado)"></td>
+                                <td class="text-center">
+                                    <span class="badge"
+                                          :class="fila.semaforo === 'verde' ? 'bg-success' : 'bg-danger'"
+                                          x-text="fila.semaforo === 'verde' ? '🟢 Al día' : '🔴 Deudora'"></span>
+                                </td>
+                                <td class="text-center small text-muted" x-text="fechaCorta(fila.ultimo_movimiento)"></td>
+                                <td class="text-center text-nowrap">
+                                    <button class="btn btn-outline-primary btn-sm"
+                                            @click="seleccionarExperta(fila.id, true)">Ver cuenta</button>
+                                    <button class="btn btn-outline-success btn-sm"
+                                            @click="abrirAsentarPago(fila.id)">Asentar pago</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="master.data.length === 0">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    No hay expertas que coincidan con el filtro.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                <span class="small text-muted">
+                    <span x-text="master.total"></span> experta(s) ·
+                    página <span x-text="master.page"></span> de
+                    <span x-text="Math.max(1, master.total_pages)"></span>
+                </span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary"
+                            @click="cargarMaster(master.page - 1)"
+                            :disabled="master.page <= 1 || masterCargando">← Anterior</button>
+                    <button class="btn btn-outline-secondary"
+                            @click="cargarMaster(master.page + 1)"
+                            :disabled="master.page >= master.total_pages || masterCargando">Siguiente →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Selector de Experta por Nombre (Reemplaza el input por ID) -->
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="card shadow-sm border-0 mb-4" id="tarjetaCuenta" x-ref="tarjetaCuenta">
         <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-3">
             <div>
                 <h5 class="fw-bold mb-0 text-primary">Cuenta Corriente - <span x-text="nombreExpertoSeleccionado"></span></h5>
@@ -34,6 +203,8 @@
                         <option :value="exp.id" x-text="exp.nombre + ' (' + (exp.codigo_integrante || 'Sin Código') + ')'"></option>
                     </template>
                 </select>
+                <button class="btn btn-success btn-sm fw-semibold" x-show="esAdmin" x-cloak
+                        @click="abrirAsentarPago(expertoId)">💵 Asentar Pago</button>
             </div>
         </div>
         
@@ -44,7 +215,7 @@
                 <div class="col-md-4">
                     <div class="bg-white border rounded p-3 h-100">
                         <span class="text-muted small d-block text-uppercase">Saldo actual en cuenta</span>
-                        <h3 class="fw-bold mb-0" :class="saldoActual >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + saldoActual.toFixed(2)"></h3>
+                        <h3 class="fw-bold mb-0" :class="saldoActual >= 0 ? 'text-success' : 'text-danger'" x-text="money(saldoActual)"></h3>
                         <span class="badge fs-6 px-2 py-1 mt-2"
                               :class="saldoActual >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"
                               x-text="semaforoTexto">
@@ -79,8 +250,8 @@
                 </div>
                 <div class="col-md-4">
                     <div class="bg-white border rounded p-3 h-100">
-                        <span class="text-muted small d-block text-uppercase">Balance neto (saldo - deuda)</span>
-                        <h4 class="fw-bold mb-0" :class="(resumen.balance_neto || 0) >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + (resumen.balance_neto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></h4>
+                        <span class="text-muted small d-block text-uppercase">Balance neto del libro</span>
+                        <h4 class="fw-bold mb-0" :class="(resumen.balance_neto || 0) >= 0 ? 'text-success' : 'text-danger'" x-text="money(resumen.balance_neto)"></h4>
                         <span class="small text-muted" x-text="(resumen.balance_neto || 0) >= 0 ? 'A favor de la experta' : 'Saldo a favor de la distribuidora'"></span>
                     </div>
                 </div>
@@ -96,9 +267,10 @@
                         <tr>
                             <th>ID Mov.</th>
                             <th>Tipo de Movimiento</th>
-                            <th>Descripción</th>
+                            <th>Descripción / Referencia</th>
                             <th class="text-end">Monto ($)</th>
                             <th class="text-end">Saldo Resultante ($)</th>
+                            <th>Registrado por</th>
                             <th class="text-center">Comprobante PDF</th>
                         </tr>
                     </thead>
@@ -107,32 +279,126 @@
                             <tr>
                                 <td class="fw-bold" x-text="'#' + mov.id"></td>
                                 <td>
-                                    <span class="badge" 
+                                    <span class="badge"
                                           :class="{
                                               'bg-danger': mov.tipo_movimiento === 'deuda_factura',
                                               'bg-success': mov.tipo_movimiento === 'pago_recibido',
                                               'bg-info text-dark': mov.tipo_movimiento === 'comision_liderazgo',
-                                              'bg-warning text-dark': mov.tipo_movimiento === 'ajuste_manual'
-                                          }" x-text="mov.tipo_movimiento.toUpperCase()"></span>
+                                              'bg-warning text-dark': mov.tipo_movimiento === 'ajuste_manual',
+                                              'bg-secondary': mov.tipo_movimiento === 'saldo_inicial'
+                                          }" x-text="(mov.tipo_movimiento || '').toUpperCase()"></span>
                                 </td>
-                                <td class="small fw-semibold text-secondary" x-text="mov.descripcion"></td>
-                                <td class="text-end fw-bold" :class="mov.monto >= 0 ? 'text-success' : 'text-danger'" x-text="'$' + mov.monto.toFixed(2)"></td>
-                                <td class="text-end fw-bold text-dark" x-text="'$' + mov.saldo_resultante.toFixed(2)"></td>
+                                <td class="small">
+                                    <div class="fw-semibold text-secondary" x-text="mov.descripcion || 'Sin descripción'"></div>
+                                    <div class="text-muted" x-show="mov.referencia" x-text="'Ref: ' + (mov.referencia || '')"></div>
+                                </td>
+                                <td class="text-end fw-bold" :class="mov.monto >= 0 ? 'text-success' : 'text-danger'" x-text="money(mov.monto)"></td>
+                                <td class="text-end fw-bold text-dark" x-text="money(mov.saldo_resultante)"></td>
+                                <td class="small text-muted" x-text="mov.creado_por_nombre || 'Sistema'"></td>
                                 <td class="text-center">
-                                    <button class="btn btn-outline-secondary btn-sm fw-semibold" @click="descargarPdf(mov.id)">
-                                        📄 Descargar Recibo
+                                    <button class="btn btn-outline-secondary btn-sm fw-semibold" @click="descargarMovimientoPdf(mov)">
+                                        <span x-text="mov.comprobante_id ? '📄 Recibo' : '📄 PDF'"></span>
                                     </button>
                                 </td>
                             </tr>
                         </template>
                         <template x-if="movimientos.length === 0">
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Seleccione una experta del menú superior para consultar su cuenta corriente.</td>
+                                <td colspan="7" class="text-center text-muted py-4">Seleccione una experta del menú superior para consultar su cuenta corriente.</td>
                             </tr>
                         </template>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Conciliación: total facturado vs total pagado vs saldo -->
+    <div class="card shadow-sm border-0 mb-4" x-show="conciliacion || conciliacionError" x-cloak>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold mb-0 text-primary">🧮 Conciliación de Cuenta</h5>
+                <span class="small text-muted">Total facturado vs. total pagado vs. saldo del libro mayor.</span>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="badge fs-6" x-show="conciliacion"
+                      :class="conciliacion && conciliacion.cuadra ? 'bg-success' : 'bg-warning text-dark'"
+                      x-text="conciliacion && conciliacion.cuadra ? '✅ Cuadra' : '⚠️ Revisar diferencias'"></span>
+                <button class="btn btn-outline-secondary btn-sm" @click="cargarConciliacion()">🔄 Recalcular</button>
+            </div>
+        </div>
+        <div class="card-body bg-light border-top">
+            <div class="alert alert-warning py-2 mb-0" x-show="conciliacionError" x-text="conciliacionError"></div>
+            <template x-if="conciliacion">
+                <div>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="bg-white border rounded p-3 h-100">
+                                <span class="text-muted small d-block text-uppercase">Facturado (libro)</span>
+                                <h5 class="fw-bold mb-0" x-text="money(conciliacion.ledger.total_facturado)"></h5>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="bg-white border rounded p-3 h-100">
+                                <span class="text-muted small d-block text-uppercase">Pagado (libro)</span>
+                                <h5 class="fw-bold text-success mb-0" x-text="money(conciliacion.ledger.total_pagado)"></h5>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="bg-white border rounded p-3 h-100">
+                                <span class="text-muted small d-block text-uppercase">Saldo del libro</span>
+                                <h5 class="fw-bold mb-0"
+                                    :class="conciliacion.ledger.saldo >= 0 ? 'text-success' : 'text-danger'"
+                                    x-text="money(conciliacion.ledger.saldo)"></h5>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="bg-white border rounded p-3 h-100">
+                                <span class="text-muted small d-block text-uppercase">Deuda de pedidos</span>
+                                <h5 class="fw-bold mb-0"
+                                    :class="conciliacion.pedidos.saldo_deudor > 0 ? 'text-danger' : 'text-success'"
+                                    x-text="money(conciliacion.pedidos.saldo_deudor)"></h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-12 col-md-4">
+                            <div class="bg-white border rounded p-2 h-100">
+                                <span class="text-muted small d-block text-uppercase">Diferencia facturado</span>
+                                <span class="fw-bold"
+                                      :class="Math.abs(conciliacion.diferencias.facturado) < 0.01 ? 'text-success' : 'text-danger'"
+                                      x-text="money(conciliacion.diferencias.facturado)"></span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="bg-white border rounded p-2 h-100">
+                                <span class="text-muted small d-block text-uppercase">Diferencia pagado</span>
+                                <span class="fw-bold"
+                                      :class="Math.abs(conciliacion.diferencias.pagado) < 0.01 ? 'text-success' : 'text-danger'"
+                                      x-text="money(conciliacion.diferencias.pagado)"></span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="bg-white border rounded p-2 h-100">
+                                <span class="text-muted small d-block text-uppercase">Diferencia saldo</span>
+                                <span class="fw-bold"
+                                      :class="Math.abs(conciliacion.diferencias.saldo) < 0.01 ? 'text-success' : 'text-danger'"
+                                      x-text="money(conciliacion.diferencias.saldo)"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-0 mt-3">
+                        <span x-text="'Pagos sin movimiento en el libro: ' + conciliacion.inconsistencias.pagos_sin_ledger"></span>
+                        <span x-text="' · Movimientos de pago sin comprobante: ' + conciliacion.inconsistencias.movimientos_sin_comprobante"></span>
+                        <span x-text="' · Facturas sin movimiento: ' + conciliacion.inconsistencias.facturas_sin_movimiento"></span>
+                    </p>
+                    <p class="small text-muted mb-0 mt-1" x-show="!conciliacion.cuadra">
+                        Las diferencias corresponden a movimientos históricos previos a la Fase 2. Se informan sin modificar los saldos ya registrados.
+                    </p>
+                </div>
+            </template>
         </div>
     </div>
 
@@ -157,7 +423,8 @@
                         <th class="text-center">Estado de Pago</th>
                         <th class="text-center">Estado del Pedido</th>
                         <th class="text-center">Detalle</th>
-                        <th class="text-center">PDF</th>
+                        <th class="text-center">PDF pedido</th>
+                        <th class="text-center">Factura</th>
                     </tr>
                 </thead>
                 <template x-for="p in pedidos" :key="'pedido-' + p.pedido_id">
@@ -182,10 +449,17 @@
                                     📄 PDF
                                 </button>
                             </td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-primary btn-sm fw-semibold" x-show="p.factura_pdf_url"
+                                        @click="descargarFacturaPedido(p)">
+                                    🧾 Factura
+                                </button>
+                                <span class="badge bg-secondary" x-show="!p.factura_pdf_url">Sin factura</span>
+                            </td>
                         </tr>
                         <template x-if="pedidoDetalleAbiertoId === p.pedido_id">
                             <tr class="table-light">
-                                <td colspan="9" class="p-3">
+                                <td colspan="10" class="p-3">
                                     <div class="row g-3">
                                         <div class="col-lg-7">
                                             <h6 class="fw-bold text-secondary mb-2">🧾 Artículos del pedido</h6>
@@ -273,9 +547,97 @@
     </div>
 </div>
 
+<!-- ============================ -->
+<!-- MODAL: ASENTAR PAGO REAL      -->
+<!-- ============================ -->
+<div class="modal-overlay" x-show="modalPagoAbierto" x-cloak
+     @click.self="cerrarModalPago()" @keydown.escape.window="cerrarModalPago()">
+    <div class="modal-card bg-white rounded-3 shadow-lg mx-auto my-5">
+        <div class="d-flex justify-content-between align-items-center px-4 py-3 bg-primary text-white rounded-top-3">
+            <h5 class="fw-bold mb-0">💵 Asentar Pago</h5>
+            <button type="button" class="btn-close btn-close-white" aria-label="Cerrar"
+                    @click="cerrarModalPago()"></button>
+        </div>
+        <div class="p-4">
+            <div class="alert alert-danger py-2" x-show="pagoError" x-text="pagoError"></div>
+            <div class="alert alert-success py-2" x-show="pagoExito">
+                <div x-text="pagoExito"></div>
+                <button type="button" class="btn btn-sm btn-outline-success mt-2 fw-semibold"
+                        x-show="ultimoComprobante" @click="descargarComprobante(ultimoComprobante)">
+                    📄 Descargar recibo
+                </button>
+            </div>
+
+            <template x-if="!pagoExito">
+                <div>
+                    <div class="mb-3" x-show="esAdmin">
+                        <label class="form-label small fw-semibold">Experta</label>
+                        <select class="form-select" x-model.number="pagoForm.experto_id">
+                            <option value="">-- Seleccione una experta --</option>
+                            <template x-for="exp in listaExpertas" :key="'pago-exp-' + exp.id">
+                                <option :value="exp.id" x-text="exp.nombre"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Monto recibido *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" min="0.01" step="0.01" class="form-control"
+                                   x-model.number="pagoForm.monto" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold">Medio de pago</label>
+                            <select class="form-select" x-model="pagoForm.medio">
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="debito">Débito</option>
+                                <option value="credito">Crédito</option>
+                                <option value="mercadopago">Mercado Pago</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold">Pedido (opcional)</label>
+                            <select class="form-select" x-model.number="pagoForm.pedido_id">
+                                <option value="">A cuenta corriente</option>
+                                <template x-for="p in pedidosConSaldo" :key="'pago-pedido-' + p.pedido_id">
+                                    <option :value="p.pedido_id"
+                                            x-text="'#' + p.pedido_id + ' · saldo ' + money(p.saldo_pendiente)"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label small fw-semibold">Observación</label>
+                        <textarea class="form-control" rows="2" x-model="pagoForm.descripcion"
+                                  placeholder="Ej.: pago parcial en efectivo"></textarea>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        El saldo se calcula siempre en el servidor. Si el pago se reintenta con el mismo
+                        identificador, no se duplica el movimiento.
+                    </p>
+                </div>
+            </template>
+        </div>
+        <div class="d-flex justify-content-end gap-2 px-4 pb-4">
+            <button class="btn btn-outline-secondary" @click="cerrarModalPago()">Cerrar</button>
+            <button class="btn btn-success fw-semibold" x-show="!pagoExito"
+                    @click="asentarPago()" :disabled="pagoEnviando">
+                <span x-show="!pagoEnviando">✅ Asentar pago</span>
+                <span x-show="pagoEnviando">Asentando…</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function ccApp() {
     return {
+        esAdmin: false,
         expertoId: '',
         nombreExpertoSeleccionado: 'Seleccione una experta',
         listaExpertas: [],
@@ -285,19 +647,61 @@ function ccApp() {
         pedidos: [],
         comisiones: [],
         resumen: {},
+        conciliacion: null,
+        conciliacionError: '',
         pedidoDetalleAbiertoId: null,
         volverUrl: 'dashboard.html',
         mensajeError: '',
+
+        // Panel maestro admin
+        master: { data: [], resumen: {}, page: 1, limit: 10, total: 0, total_pages: 0 },
+        masterFiltros: { buscar: '', semaforo: '', solo_activos: true, orden: 'saldo_asc' },
+        masterCargando: false,
+        masterError: '',
+
+        // Modal Asentar Pago
+        modalPagoAbierto: false,
+        pagoForm: { experto_id: '', monto: '', medio: 'efectivo', descripcion: '', pedido_id: '', idempotencia: '' },
+        pagoEnviando: false,
+        pagoError: '',
+        pagoExito: '',
+        ultimoComprobante: null,
+
         init() {
             const usr = localStorage.getItem('usuario');
             if (usr) {
                 try {
                     const u = JSON.parse(usr);
-                    this.volverUrl = u.rol === 'admin' ? 'dashboard.html' : 'dashboard_experto.html';
+                    this.esAdmin = u.rol === 'admin';
+                    this.volverUrl = this.esAdmin ? 'dashboard.html' : 'dashboard_experto.html';
                 } catch (e) { /* mantener dashboard.html */ }
             }
             verificarSesion();
+            if (this.esAdmin) {
+                this.cargarMaster(1);
+            }
             this.cargarListaExpertas();
+        },
+        money(valor) {
+            const n = Number(valor || 0);
+            return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        fechaCorta(valor) {
+            if (!valor) return '—';
+            const d = new Date(String(valor).replace(' ', 'T'));
+            if (isNaN(d.getTime())) return String(valor);
+            return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+        },
+        urlPdf(ruta) {
+            if (!ruta) return '';
+            if (/^https?:\/\//i.test(ruta)) return ruta;
+            return `${CONFIG.API_BASE_URL}${ruta.startsWith('/') ? '' : '/'}${ruta}`;
+        },
+        generarIdempotencia() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return window.crypto.randomUUID();
+            }
+            return 'pago-' + Date.now() + '-' + Math.random().toString(16).slice(2);
         },
         async cargarListaExpertas() {
             try {
@@ -325,11 +729,13 @@ function ccApp() {
         async cargarCuenta() {
             if (!this.expertoId) return;
             this.mensajeError = '';
+            this.conciliacion = null;
+            this.conciliacionError = '';
 
             // Actualizamos el nombre visual de la experta seleccionada
-            const expEncontrada = this.listaExpertas.find(e => e.id === parseInt(this.expertoId));
+            const expEncontrada = this.listaExpertas.find(e => String(e.id) === String(this.expertoId));
             if (expEncontrada) {
-                this.nombreExpertoSeleccionado = `${expEncontrada.nombre} (${expEncontrada.codigo_integrante})`;
+                this.nombreExpertoSeleccionado = `${expEncontrada.nombre} (${expEncontrada.codigo_integrante || 'Sin código'})`;
             }
 
             try {
@@ -337,17 +743,17 @@ function ccApp() {
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
-                if (res.ok) {
-                    this.saldoActual = data.saldo_actual || 0.00;
-                    this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
-                    this.movimientos = data.historial_movimientos || [];
-                    this.pedidos = data.pedidos || [];
-                    this.comisiones = data.comisiones || [];
-                    this.resumen = data.resumen_financiero || {};
-                    this.pedidoDetalleAbiertoId = null;
-                } else {
+                if (!res.ok) {
                     throw new Error(data.detail || 'No se pudo cargar la cuenta');
                 }
+                this.saldoActual = Number(data.saldo_actual || 0);
+                this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
+                this.movimientos = data.historial_movimientos || [];
+                this.pedidos = data.pedidos || [];
+                this.comisiones = data.comisiones || [];
+                this.resumen = data.resumen_financiero || {};
+                this.pedidoDetalleAbiertoId = null;
+                this.cargarConciliacion();
             } catch (err) {
                 console.error(err);
                 this.mensajeError = err.message || 'No se pudo cargar la cuenta corriente.';
@@ -356,6 +762,166 @@ function ccApp() {
                 this.comisiones = [];
                 this.resumen = {};
                 this.saldoActual = 0.00;
+            }
+        },
+        async cargarConciliacion() {
+            if (!this.expertoId) return;
+            this.conciliacionError = '';
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/${this.expertoId}/conciliacion`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'No se pudo calcular la conciliación.');
+                }
+                this.conciliacion = data;
+            } catch (err) {
+                console.error(err);
+                this.conciliacion = null;
+                this.conciliacionError = err.message || 'No se pudo calcular la conciliación.';
+            }
+        },
+        async seleccionarExperta(id, scroll = false) {
+            if (!id) return;
+            this.expertoId = parseInt(id);
+            await this.cargarCuenta();
+            if (scroll) {
+                const tarjeta = document.getElementById('tarjetaCuenta');
+                if (tarjeta) tarjeta.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        },
+        async cargarMaster(page = 1) {
+            if (!this.esAdmin) return;
+            if (this.masterCargando) return;
+            this.masterCargando = true;
+            this.masterError = '';
+            try {
+                const params = new URLSearchParams();
+                if (this.masterFiltros.buscar) params.set('buscar', this.masterFiltros.buscar);
+                if (this.masterFiltros.semaforo) params.set('semaforo', this.masterFiltros.semaforo);
+                params.set('solo_activos', this.masterFiltros.solo_activos ? 'true' : 'false');
+                params.set('orden', this.masterFiltros.orden);
+                params.set('page', Math.max(1, page));
+                params.set('limit', this.masterFiltros.limit);
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/admin/cuenta-corriente?${params.toString()}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'No se pudo cargar la tabla maestra');
+                }
+                this.master = {
+                    data: data.data || [],
+                    resumen: data.resumen || {},
+                    page: data.page || page,
+                    limit: data.limit || this.masterFiltros.limit,
+                    total: data.total || 0,
+                    total_pages: data.total_pages || 0
+                };
+            } catch (err) {
+                console.error(err);
+                this.masterError = err.message || 'No se pudo cargar la tabla maestra.';
+            } finally {
+                this.masterCargando = false;
+            }
+        },
+        get pedidosConSaldo() {
+            return (this.pedidos || []).filter(
+                p => Number(p.saldo_pendiente || 0) > 0.009 && p.estado !== 'rechazado'
+            );
+        },
+        async abrirAsentarPago(expertoId) {
+            const id = expertoId || this.expertoId;
+            if (!id) {
+                alert('Seleccione una experta para asentar el pago.');
+                return;
+            }
+            this.pagoError = '';
+            this.pagoExito = '';
+            this.ultimoComprobante = null;
+            this.pagoForm = {
+                experto_id: parseInt(id),
+                monto: '',
+                medio: 'efectivo',
+                descripcion: '',
+                pedido_id: '',
+                idempotencia: this.generarIdempotencia()
+            };
+            this.modalPagoAbierto = true;
+            if (String(id) !== String(this.expertoId)) {
+                this.expertoId = parseInt(id);
+            }
+            await this.cargarCuenta();
+        },
+        cerrarModalPago() {
+            this.modalPagoAbierto = false;
+            this.pagoError = '';
+            this.pagoExito = '';
+            this.ultimoComprobante = null;
+            this.pagoEnviando = false;
+        },
+        async asentarPago() {
+            this.pagoError = '';
+            this.pagoExito = '';
+
+            const monto = Number(this.pagoForm.monto);
+            if (!this.pagoForm.experto_id) {
+                this.pagoError = 'Seleccione una experta.';
+                return;
+            }
+            if (!(monto > 0)) {
+                this.pagoError = 'El monto debe ser mayor a cero.';
+                return;
+            }
+
+            this.pagoEnviando = true;
+            try {
+                const payload = {
+                    experto_id: parseInt(this.pagoForm.experto_id),
+                    monto,
+                    medio: this.pagoForm.medio || null,
+                    descripcion: this.pagoForm.descripcion || null,
+                    pedido_id: this.pagoForm.pedido_id ? parseInt(this.pagoForm.pedido_id) : null,
+                    idempotencia: this.pagoForm.idempotencia || null
+                };
+
+                const res = await fetch(`${CONFIG.API_BASE_URL}/pagos/asentar`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'No se pudo asentar el pago.');
+                }
+
+                this.ultimoComprobante = data.comprobante || null;
+                const numero = data.comprobante && data.comprobante.numero
+                    ? ' · Recibo ' + data.comprobante.numero
+                    : '';
+                const reintento = data.creado === false
+                    ? ' (reintento idempotente: no se duplicó)'
+                    : '';
+                this.pagoExito = `Pago asentado${numero}. Saldo nuevo: ${this.money(data.saldo_nuevo)}.${reintento}`;
+
+                // Una nueva operación debe usar una nueva clave de idempotencia.
+                this.pagoForm.idempotencia = this.generarIdempotencia();
+
+                if (String(this.expertoId) === String(payload.experto_id)) {
+                    await this.cargarCuenta();
+                } else {
+                    await this.seleccionarExperta(payload.experto_id);
+                }
+                if (this.esAdmin) {
+                    this.cargarMaster(this.master.page);
+                }
+            } catch (err) {
+                console.error(err);
+                this.pagoError = err.message || 'No se pudo asentar el pago.';
+            } finally {
+                this.pagoEnviando = false;
             }
         },
         estadoPagoTexto(estado) {
@@ -419,11 +985,34 @@ function ccApp() {
                 alert(`Error al descargar el PDF: ${err.message}`);
             }
         },
-        async descargarPdf(movimientoId) {
+        async descargarMovimientoPdf(mov) {
+            if (!mov) return;
+            if (mov.comprobante_id) {
+                await this.descargarArchivo(
+                    `${CONFIG.API_BASE_URL}/comprobantes/${mov.comprobante_id}/pdf`,
+                    `comprobante_${mov.comprobante_id}.pdf`
+                );
+                return;
+            }
+            // Movimientos históricos sin comprobante: recibo de control interno.
             await this.descargarArchivo(
-                `${CONFIG.API_BASE_URL}/cuenta-corriente/pdf/${movimientoId}`,
-                `recibo_cuenta_${movimientoId}.pdf`
+                `${CONFIG.API_BASE_URL}/cuenta-corriente/pdf/${mov.id}`,
+                `recibo_cuenta_${mov.id}.pdf`
             );
+        },
+        async descargarComprobante(comprobante) {
+            if (!comprobante) return;
+            const url = comprobante.pdf_url
+                ? this.urlPdf(comprobante.pdf_url)
+                : `${CONFIG.API_BASE_URL}/comprobantes/${comprobante.id}/pdf`;
+            await this.descargarArchivo(url, `comprobante_${comprobante.numero || comprobante.id}.pdf`);
+        },
+        async descargarFacturaPedido(pedido) {
+            if (!pedido) return;
+            const url = pedido.factura_pdf_url
+                ? this.urlPdf(pedido.factura_pdf_url)
+                : `${CONFIG.API_BASE_URL}/pedidos/${pedido.pedido_id}/factura/pdf`;
+            await this.descargarArchivo(url, `factura_pedido_${pedido.pedido_id}.pdf`);
         },
         async descargarPedidoPdf(pedidoId) {
             await this.descargarArchivo(
