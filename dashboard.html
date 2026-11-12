@@ -259,10 +259,11 @@
                             <th class="text-center">Incorporados Directos</th>
                             <th class="text-center">Estatus Oficial</th>
                             <th class="text-center">Estado de Auditoría</th>
+                            <th class="text-center">Red</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <template x-for="item in auditoriaData.auditoria_general" :key="item.id">
+                    <template x-for="item in auditoriaData.auditoria_general" :key="item.id">
+                        <tbody>
                             <tr>
                                 <td class="fw-bold" x-text="item.id"></td>
                                 <td class="fw-semibold" x-text="item.nombre"></td>
@@ -275,13 +276,78 @@
                                 <td class="text-center">
                                     <span class="badge fs-6 px-2 py-1" :class="item.incorporados_directos >= 10 ? 'bg-success text-white' : 'bg-danger text-white'" x-text="item.estado_auditoria"></span>
                                 </td>
+                                <td class="text-center">
+                                    <button class="btn btn-outline-primary btn-sm fw-semibold"
+                                            @click="verRedCompleta(item.id)">
+                                        <span x-text="redAbiertaId === item.id ? '▲ Ocultar' : '🌐 Ver red'"></span>
+                                    </button>
+                                </td>
                             </tr>
-                        </template>
-                        <template x-if="!auditoriaData.auditoria_general || auditoriaData.auditoria_general.length === 0">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Sin registros de red disponibles.</td>
-                            </tr>
-                        </template>
+                            <template x-if="redAbiertaId === item.id">
+                                <tr class="table-light">
+                                    <td colspan="8" class="p-3">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                            <div>
+                                                <h6 class="fw-bold text-primary mb-0" x-text="'🌐 Red completa de ' + item.nombre"></h6>
+                                                <span class="small text-muted">Descendencia recursiva (hijas, nietas y siguientes niveles).</span>
+                                            </div>
+                                            <div class="d-flex gap-2 align-items-center">
+                                                <span class="badge bg-secondary" x-text="'Directos: ' + item.incorporados_directos"></span>
+                                                <span class="badge bg-primary" x-show="redDetalle" x-text="'Total red: ' + (redDetalle?.total_red_completa || 0)"></span>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-warning py-2 mb-2" x-show="errorRed" x-text="errorRed"></div>
+                                        <div class="text-center py-3" x-show="cargandoRed">
+                                            <span class="spinner-border spinner-border-sm text-primary"></span>
+                                            <span class="small text-muted ms-2">Cargando red...</span>
+                                        </div>
+                                        <div class="table-responsive" x-show="!cargandoRed && redDetalle && (redDetalle.red_completa || []).length > 0" style="max-height: 350px; overflow-y: auto;">
+                                            <table class="table table-sm table-bordered bg-white mb-0 align-middle">
+                                                <thead class="table-light small text-uppercase">
+                                                    <tr>
+                                                        <th>Código</th>
+                                                        <th>Nombre y Apellido</th>
+                                                        <th>Localidad / Barrio</th>
+                                                        <th class="text-center">Marca</th>
+                                                        <th class="text-center">Estado</th>
+                                                        <th class="text-center">Contacto</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-for="inc in (redDetalle.red_completa || [])" :key="'red-admin-' + item.id + '-' + inc.id">
+                                                        <tr>
+                                                            <td class="fw-bold text-secondary small" x-text="inc.codigo_integrante || 'Sin código'"></td>
+                                                            <td class="fw-semibold" x-text="inc.nombre"></td>
+                                                            <td class="small" x-text="inc.barrio ? (inc.barrio + ' (' + inc.localidad + ')') : inc.localidad"></td>
+                                                            <td class="text-center"><span class="badge bg-info text-dark" x-text="inc.marca_trabaja || 'Ambas'"></span></td>
+                                                            <td class="text-center">
+                                                                <span class="badge" :class="inc.activo ? 'bg-success' : 'bg-secondary'" x-text="inc.activo ? 'Activa' : 'Inactiva'"></span>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <template x-if="inc.whatsapp_link && inc.whatsapp_link !== '#'">
+                                                                    <a :href="inc.whatsapp_link" target="_blank" class="btn btn-success btn-sm">💬 WhatsApp</a>
+                                                                </template>
+                                                                <template x-if="!inc.whatsapp_link || inc.whatsapp_link === '#'">
+                                                                    <span class="small text-muted">Sin teléfono</span>
+                                                                </template>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="small text-muted mb-0" x-show="!cargandoRed && !errorRed && redDetalle && (redDetalle.red_completa || []).length === 0">
+                                            Esta integrante no tiene descendencia recursiva registrada.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </template>
+                    <tbody x-show="!auditoriaData.auditoria_general || auditoriaData.auditoria_general.length === 0">
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Sin registros de red disponibles.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -522,6 +588,10 @@ function dashboardApp() {
         pedidosPendientesCount: 0,
         
         auditoriaData: {},
+        redAbiertaId: null,
+        redDetalle: null,
+        cargandoRed: false,
+        errorRed: '',
         formReg: {
             nombre: '', email: '', password: '', dni: '', cuil: '',
             fecha_nacimiento: '', domicilio: '', barrio: '', localidad: 'Jesús María',
@@ -592,6 +662,31 @@ function dashboardApp() {
                 }
             } catch (err) {
                 console.error("Error al cargar auditoría de red:", err);
+            }
+        },
+        async verRedCompleta(usuarioId) {
+            if (this.redAbiertaId === usuarioId) {
+                this.redAbiertaId = null;
+                return;
+            }
+
+            this.redAbiertaId = usuarioId;
+            this.redDetalle = null;
+            this.errorRed = '';
+            this.cargandoRed = true;
+
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'No se pudo cargar la red completa');
+                this.redDetalle = data;
+            } catch (err) {
+                console.error("Error al cargar red completa:", err);
+                this.errorRed = err.message;
+            } finally {
+                this.cargandoRed = false;
             }
         },
         async ejecutarCierreMasivo() {

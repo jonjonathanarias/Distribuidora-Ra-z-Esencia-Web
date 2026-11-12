@@ -258,7 +258,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success btn-sm fw-semibold px-4" @click="guardarAjuste()" :disabled="guardando || ['rechazado', 'facturado'].includes(pedidoSeleccionado?.estado)">
+                <button type="button" class="btn btn-success btn-sm fw-semibold px-4" @click="guardarAjuste()" :disabled="guardando || ['rechazado', 'borrador'].includes(pedidoSeleccionado?.estado)">
                     <span x-show="!guardando">Confirmar Entrega y Guardar Ajustes</span>
                     <span x-show="guardando" class="spinner-border spinner-border-sm"></span>
                 </button>

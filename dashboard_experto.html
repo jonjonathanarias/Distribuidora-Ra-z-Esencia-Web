@@ -399,10 +399,6 @@
                     <span class="text-muted small d-block">Incorporados en Red Directa</span>
                     <h2 class="fw-bold text-success mb-0" x-text="totalIncorporados"></h2>
                 </div>
-                <div class="text-md-end bg-light p-3 rounded border">
-                    <span class="text-muted small d-block">Red Completa (Recursiva)</span>
-                    <h2 class="fw-bold text-primary mb-0" x-text="totalRedCompleta"></h2>
-                </div>
             </div>
         </div>
 
@@ -472,56 +468,12 @@
             </div>
         </div>
 
-        <!-- Red Completa / Descendencia Recursiva -->
-        <div class="card shadow-sm border-0 p-4 mt-4" x-show="redCompleta.length > 0">
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <div>
-                    <h4 class="fw-bold text-primary mb-1">🌐 Mi Red Completa (Descendencia Recursiva)</h4>
-                    <p class="text-muted small mb-0">Incluye hijas, nietas y toda la descendencia de su red, no solo las incorporadas directas.</p>
-                </div>
-                <span class="badge bg-primary fs-6 px-3 py-2" x-text="redCompleta.length + ' integrante(s)'"></span>
-            </div>
-            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                <table class="table table-bordered table-striped align-middle mb-0">
-                    <thead class="table-light small sticky-top">
-                        <tr>
-                            <th>Código</th>
-                            <th>Nombre y Apellido</th>
-                            <th>Localidad / Barrio</th>
-                            <th class="text-center">Marca</th>
-                            <th class="text-center">Contacto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="inc in redCompleta" :key="'red-' + inc.id">
-                            <tr>
-                                <td class="fw-bold text-secondary" x-text="inc.codigo_integrante"></td>
-                                <td class="fw-semibold text-dark" x-text="inc.nombre"></td>
-                                <td x-text="inc.barrio ? (inc.barrio + ' (' + inc.localidad + ')') : inc.localidad"></td>
-                                <td class="text-center">
-                                    <span class="badge bg-info text-dark" x-text="inc.marca_trabaja || 'Ambas'"></span>
-                                </td>
-                                <td class="text-center">
-                                    <template x-if="inc.whatsapp_link && inc.whatsapp_link !== '#'">
-                                        <a :href="inc.whatsapp_link" target="_blank" class="btn btn-success btn-sm">💬 WhatsApp</a>
-                                    </template>
-                                    <template x-if="!inc.whatsapp_link || inc.whatsapp_link === '#'">
-                                        <span class="text-muted small">Sin teléfono</span>
-                                    </template>
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- Pedidos de la Red (solo líderes) -->
         <div class="card shadow-sm border-0 p-4 mt-4" x-show="liderInfo.es_lider">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
-                    <h4 class="fw-bold text-primary mb-1">📦 Pedidos de mi Red</h4>
-                    <p class="text-muted small mb-0">Pedidos realizados por toda su red: hijas, nietas y demás descendencia.</p>
+                    <h4 class="fw-bold text-primary mb-1">📦 Pedidos de mi Equipo Directo</h4>
+                    <p class="text-muted small mb-0">Pedidos realizados por las integrantes de su equipo directo.</p>
                 </div>
                 <button class="btn btn-outline-primary btn-sm fw-semibold" @click="cargarPedidosRed()" :disabled="cargandoPedidosRed">
                     <span x-show="!cargandoPedidosRed">🔄 Actualizar pedidos</span>
@@ -663,8 +615,6 @@ function expertoDashboardApp() {
         liderInfo: {},
         equipoDirecto: [],
         totalIncorporados: 0,
-        redCompleta: [],
-        totalRedCompleta: 0,
         pedidosRed: [],
         cargandoPedidosRed: false,
         errorPedidosRed: '',
@@ -757,8 +707,6 @@ function expertoDashboardApp() {
                     this.liderInfo = data.lider || {};
                     this.equipoDirecto = data.equipo_directo || [];
                     this.totalIncorporados = data.total_incorporados_directos || 0;
-                    this.redCompleta = data.red_completa || [];
-                    this.totalRedCompleta = data.total_red_completa || 0;
 
                     if (this.liderInfo.es_lider) {
                         this.cargarPedidosRed();

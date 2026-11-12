@@ -156,11 +156,12 @@
                         <th class="text-end">Saldo</th>
                         <th class="text-center">Estado de Pago</th>
                         <th class="text-center">Estado del Pedido</th>
-                        <th class="text-center">Pagos</th>
+                        <th class="text-center">Detalle</th>
+                        <th class="text-center">PDF</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <template x-for="p in pedidos" :key="'pedido-' + p.pedido_id">
+                <template x-for="p in pedidos" :key="'pedido-' + p.pedido_id">
+                    <tbody>
                         <tr>
                             <td class="fw-bold" x-text="'#' + p.pedido_id"></td>
                             <td><span class="badge bg-secondary" x-text="p.empresa"></span></td>
@@ -172,31 +173,97 @@
                             </td>
                             <td class="text-center"><span class="badge" :class="estadoPedidoClase(p.estado)" x-text="estadoPedidoTexto(p.estado)"></span></td>
                             <td class="text-center">
-                                <button class="btn btn-outline-secondary btn-sm" x-show="(p.pagos || []).length > 0"
-                                        @click="pedidoPagosAbiertoId = (pedidoPagosAbiertoId === p.pedido_id ? null : p.pedido_id)">
-                                    <span x-text="pedidoPagosAbiertoId === p.pedido_id ? 'Ocultar' : ((p.pagos || []).length + ' pago(s)')"></span>
+                                <button class="btn btn-outline-primary btn-sm" @click="pedidoDetalleAbiertoId = (pedidoDetalleAbiertoId === p.pedido_id ? null : p.pedido_id)">
+                                    <span x-text="pedidoDetalleAbiertoId === p.pedido_id ? '▲ Ocultar' : '▼ Ver detalle'"></span>
                                 </button>
-                                <span class="small text-muted" x-show="(p.pagos || []).length === 0">Sin pagos</span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-secondary btn-sm fw-semibold" @click="descargarPedidoPdf(p.pedido_id)">
+                                    📄 PDF
+                                </button>
                             </td>
                         </tr>
-                        <template x-if="pedidoPagosAbiertoId === p.pedido_id">
+                        <template x-if="pedidoDetalleAbiertoId === p.pedido_id">
                             <tr class="table-light">
-                                <td colspan="8" class="small">
-                                    <strong>Pagos registrados:</strong>
-                                    <ul class="mb-0 mt-1">
-                                        <template x-for="pago in p.pagos" :key="'pago-' + pago.id">
-                                            <li>
-                                                Pago #<span x-text="pago.id"></span> ·
-                                                $<span x-text="pago.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span> ·
-                                                <span class="text-muted" x-text="pago.fecha"></span>
-                                            </li>
-                                        </template>
-                                    </ul>
+                                <td colspan="9" class="p-3">
+                                    <div class="row g-3">
+                                        <div class="col-lg-7">
+                                            <h6 class="fw-bold text-secondary mb-2">🧾 Artículos del pedido</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered bg-white mb-0 align-middle">
+                                                    <thead class="table-light small text-uppercase">
+                                                        <tr>
+                                                            <th>Producto</th>
+                                                            <th class="text-center">Pedido</th>
+                                                            <th class="text-center">Entregado</th>
+                                                            <th class="text-center">Pendiente</th>
+                                                            <th class="text-end">P. Unit.</th>
+                                                            <th class="text-end">Subtotal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="det in (p.detalles || [])" :key="'det-' + p.pedido_id + '-' + det.detalle_id">
+                                                            <tr>
+                                                                <td class="small">
+                                                                    <span class="fw-semibold" x-text="det.nombre_producto"></span>
+                                                                    <span class="text-muted" x-text="' (' + det.codigo_sku + ')'"></span>
+                                                                </td>
+                                                                <td class="text-center" x-text="det.cantidad_pedida"></td>
+                                                                <td class="text-center text-success fw-semibold" x-text="det.cantidad_entregada"></td>
+                                                                <td class="text-center" :class="det.cantidad_faltante > 0 ? 'text-danger fw-semibold' : 'text-muted'" x-text="det.cantidad_faltante"></td>
+                                                                <td class="text-end" x-text="'$' + (det.precio_unitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                                                <td class="text-end fw-semibold" x-text="'$' + (det.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></td>
+                                                            </tr>
+                                                        </template>
+                                                        <template x-if="(p.detalles || []).length === 0">
+                                                            <tr>
+                                                                <td colspan="6" class="text-center text-muted small py-3">El pedido no tiene artículos registrados.</td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-5">
+                                            <h6 class="fw-bold text-secondary mb-2">💰 Pagos registrados</h6>
+                                            <div class="bg-white border rounded p-2">
+                                                <template x-if="(p.pagos || []).length === 0">
+                                                    <p class="small text-muted mb-0">No hay pagos registrados para este pedido.</p>
+                                                </template>
+                                                <ul class="list-unstyled mb-0 small">
+                                                    <template x-for="pago in (p.pagos || [])" :key="'pago-' + p.pedido_id + '-' + pago.id">
+                                                        <li class="d-flex justify-content-between border-bottom py-1">
+                                                            <span>
+                                                                Pago #<span x-text="pago.id"></span>
+                                                                <span class="text-muted" x-text="' · ' + (pago.fecha || '') + ' · ' + (pago.medio || 'Sin medio')"></span>
+                                                            </span>
+                                                            <span class="fw-semibold text-success" x-text="'$' + (pago.monto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                                <div class="d-flex justify-content-between mt-2 pt-2 border-top small">
+                                                    <span class="fw-bold">Total facturado</span>
+                                                    <span class="fw-bold" x-text="'$' + (p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                </div>
+                                                <div class="d-flex justify-content-between small">
+                                                    <span>Pagado</span>
+                                                    <span class="text-success" x-text="'$' + (p.monto_pagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                </div>
+                                                <div class="d-flex justify-content-between small">
+                                                    <span class="fw-bold">Saldo</span>
+                                                    <span class="fw-bold" :class="(p.saldo_pendiente || 0) > 0 ? 'text-danger' : 'text-success'" x-text="'$' + (p.saldo_pendiente || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })"></span>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-outline-secondary btn-sm w-100 mt-2 fw-semibold" @click="descargarPedidoPdf(p.pedido_id)">
+                                                📄 Descargar detalle en PDF
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         </template>
-                    </template>
-                </tbody>
+                    </tbody>
+                </template>
             </table>
         </div>
     </div>
@@ -218,7 +285,7 @@ function ccApp() {
         pedidos: [],
         comisiones: [],
         resumen: {},
-        pedidoPagosAbiertoId: null,
+        pedidoDetalleAbiertoId: null,
         volverUrl: 'dashboard.html',
         mensajeError: '',
         init() {
@@ -235,7 +302,7 @@ function ccApp() {
         async cargarListaExpertas() {
             try {
                 // El backend devuelve solo las expertas que este usuario puede consultar:
-                // admin -> todas; líder -> ella + toda su descendencia recursiva; experta -> solo ella.
+                // admin -> todas; líder -> ella + su equipo directo; experta -> solo ella.
                 const res = await fetch(`${CONFIG.API_BASE_URL}/red/mis-expertas`, {
                     headers: getAuthHeaders()
                 });
@@ -277,7 +344,7 @@ function ccApp() {
                     this.pedidos = data.pedidos || [];
                     this.comisiones = data.comisiones || [];
                     this.resumen = data.resumen_financiero || {};
-                    this.pedidoPagosAbiertoId = null;
+                    this.pedidoDetalleAbiertoId = null;
                 } else {
                     throw new Error(data.detail || 'No se pudo cargar la cuenta');
                 }
@@ -334,25 +401,35 @@ function ccApp() {
             };
             return clases[estado] || 'bg-light text-dark border';
         },
-        async descargarPdf(movimientoId) {
+        async descargarArchivo(url, nombreArchivo) {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/pdf/${movimientoId}`, {
-                    headers: getAuthHeaders()
-                });
-                if (!res.ok) throw new Error('Error al generar el comprobante PDF');
+                const res = await fetch(url, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Error al generar el PDF');
 
                 const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
+                const urlBlob = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `recibo_cuenta_${movimientoId}.pdf`;
+                a.href = urlBlob;
+                a.download = nombreArchivo;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(urlBlob);
             } catch (err) {
-                alert(`Error al descargar el recibo: ${err.message}`);
+                alert(`Error al descargar el PDF: ${err.message}`);
             }
+        },
+        async descargarPdf(movimientoId) {
+            await this.descargarArchivo(
+                `${CONFIG.API_BASE_URL}/cuenta-corriente/pdf/${movimientoId}`,
+                `recibo_cuenta_${movimientoId}.pdf`
+            );
+        },
+        async descargarPedidoPdf(pedidoId) {
+            await this.descargarArchivo(
+                `${CONFIG.API_BASE_URL}/pedidos/${pedidoId}/pdf`,
+                `pedido_${pedidoId}.pdf`
+            );
         }
     }
 }
