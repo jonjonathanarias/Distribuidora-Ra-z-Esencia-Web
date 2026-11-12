@@ -655,7 +655,7 @@ function ccApp() {
 
         // Panel maestro admin
         master: { data: [], resumen: {}, page: 1, limit: 10, total: 0, total_pages: 0 },
-        masterFiltros: { buscar: '', semaforo: '', solo_activos: true, orden: 'saldo_asc' },
+        masterFiltros: { buscar: '', semaforo: '', solo_activos: true, orden: 'saldo_asc', limit: 10 },
         masterCargando: false,
         masterError: '',
 
@@ -685,6 +685,30 @@ function ccApp() {
         money(valor) {
             const n = Number(valor || 0);
             return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        mensajeErrorApi(data, fallback) {
+            // FastAPI devuelve `detail` como string (error de negocio) o como
+            // arreglo (error 422 de validación). Se normaliza para no mostrar
+            // "[object Object]" en pantalla.
+            if (!data) return fallback;
+            const detalle = data.detail !== undefined ? data.detail : data.error;
+            if (typeof detalle === 'string' && detalle.trim()) return detalle;
+            if (Array.isArray(detalle)) {
+                const partes = detalle.map((item) => {
+                    if (!item) return '';
+                    if (typeof item === 'string') return item;
+                    const campo = Array.isArray(item.loc)
+                        ? item.loc.filter((p) => p !== 'body' && p !== 'query' && p !== 'path').join('.')
+                        : '';
+                    const msg = item.msg || item.message || '';
+                    return campo ? `${campo}: ${msg}` : msg;
+                }).filter(Boolean);
+                if (partes.length) return partes.join(' · ');
+            }
+            if (detalle && typeof detalle === 'object') {
+                try { return JSON.stringify(detalle); } catch (e) { /* ignorar */ }
+            }
+            return fallback;
         },
         fechaCorta(valor) {
             if (!valor) return '—';
@@ -719,7 +743,7 @@ function ccApp() {
                         this.cargarCuenta();
                     }
                 } else {
-                    throw new Error(data.detail || 'No se pudo cargar el listado de expertas');
+                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar el listado de expertas'));
                 }
             } catch (err) {
                 console.error("Error al cargar lista de expertas:", err);
@@ -744,7 +768,7 @@ function ccApp() {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    throw new Error(data.detail || 'No se pudo cargar la cuenta');
+                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar la cuenta'));
                 }
                 this.saldoActual = Number(data.saldo_actual || 0);
                 this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
@@ -773,7 +797,7 @@ function ccApp() {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    throw new Error(data.detail || 'No se pudo calcular la conciliación.');
+                    throw new Error(this.mensajeErrorApi(data, 'No se pudo calcular la conciliación.'));
                 }
                 this.conciliacion = data;
             } catch (err) {
@@ -801,16 +825,16 @@ function ccApp() {
                 if (this.masterFiltros.buscar) params.set('buscar', this.masterFiltros.buscar);
                 if (this.masterFiltros.semaforo) params.set('semaforo', this.masterFiltros.semaforo);
                 params.set('solo_activos', this.masterFiltros.solo_activos ? 'true' : 'false');
-                params.set('orden', this.masterFiltros.orden);
-                params.set('page', Math.max(1, page));
-                params.set('limit', this.masterFiltros.limit);
+                params.set('orden', this.masterFiltros.orden || 'saldo_asc');
+                params.set('page', Math.max(1, Number(page) || 1));
+                params.set('limit', Number(this.masterFiltros.limit) || 10);
 
                 const res = await fetch(`${CONFIG.API_BASE_URL}/admin/cuenta-corriente?${params.toString()}`, {
                     headers: getAuthHeaders()
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    throw new Error(data.detail || 'No se pudo cargar la tabla maestra');
+                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar la tabla maestra'));
                 }
                 this.master = {
                     data: data.data || [],
@@ -894,7 +918,7 @@ function ccApp() {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    throw new Error(data.detail || 'No se pudo asentar el pago.');
+                    throw new Error(this.mensajeErrorApi(data, 'No se pudo asentar el pago.'));
                 }
 
                 this.ultimoComprobante = data.comprobante || null;
