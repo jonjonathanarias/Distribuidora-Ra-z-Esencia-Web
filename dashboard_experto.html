@@ -2,12 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
     <title>Panel de Experta | REINO & Marzzan</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="js/config.js"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
 </head>
 <body class="bg-light" x-data="expertoDashboardApp()" x-init="init()">
 
@@ -67,36 +72,20 @@
         <div class="row g-4">
             
             <!-- ZONA DE ALERTAS DINÁMICAS INTELIGENTES -->
-            <div class="col-12" x-show="progresoData.metricas">
-                <!-- Alerta Reino -->
-                <div class="alert shadow-sm border-0 border-start border-4 mb-3"
-                     :class="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? 'alert-success border-success' : 'alert-warning border-warning'">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="fs-5" x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? '🎉' : '⚠️'"></span>
-                        <div>
-                            <strong x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 ? '¡Meta de Reino Cumplida!' : 'Atención con tu meta de Reino:'"></strong>
-                            <span x-text="(progresoData.metricas?.unidades_reino_total || 0) >= 10 
-                                ? ' Ya alcanzaste o superaste las 10 unidades requeridas en esta quincena.' 
-                                : ' Te faltan ' + (10 - (progresoData.metricas?.unidades_reino_total || 0)) + ' unidades de Reino para evitar el congelamiento de ganancias al 30%.'">
-                            </span>
+            <div class="col-12" x-show="(progresoData.alertas || []).length">
+                <!-- Alertas calculadas por el backend (Fase 4) -->
+                <template x-for="(alerta, indice) in (progresoData.alertas || [])" :key="(alerta.codigo || 'alerta') + '-' + indice">
+                    <div class="alert shadow-sm border-0 border-start border-4 mb-3"
+                         :class="'alert-' + (alerta.nivel || 'info') + ' border-' + (alerta.nivel || 'info')">
+                        <div class="d-flex align-items-start gap-2">
+                            <span class="fs-5" x-text="alerta.nivel === 'danger' ? '⛔' : alerta.nivel === 'warning' ? '⚠️' : alerta.nivel === 'success' ? '🎉' : '💡'"></span>
+                            <div>
+                                <strong x-text="alerta.titulo"></strong>
+                                <span x-text="' ' + (alerta.mensaje || '')"></span>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Alerta Marzzan -->
-                <div class="alert shadow-sm border-0 border-start border-4"
-                     :class="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? 'alert-success border-success' : 'alert-info border-info'">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="fs-5" x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? '🎉' : '💡'"></span>
-                        <div>
-                            <strong x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 ? '¡Margen Marzzan Óptimo Asegurado!' : 'Progreso de Margen Marzzan:'"></strong>
-                            <span x-text="(progresoData.metricas?.total_psd_marzzan || 0) >= 70000 
-                                ? ' ¡Ya cumpliste tu meta Marzzan de esta quincena! Superaste los $70.000 PSD y mantienes tu margen del 45%.' 
-                                : ' Llevas acumulado $' + (progresoData.metricas?.total_psd_marzzan || 0).toLocaleString() + ' PSD. Te faltan $' + (70000 - (progresoData.metricas?.total_psd_marzzan || 0)).toLocaleString() + ' PSD para asegurar el 45% (actualmente 20%).'">
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                </template>
             </div>
 
             <!-- Tarjeta de Líder / Patrocinador Asignado -->
@@ -131,11 +120,11 @@
                         <h5 class="fw-bold text-success mb-0">🌿 Progreso Reino (Unidades)</h5>
                         <span class="badge bg-info text-dark" x-text="progresoData.experto?.estado_reino || 'Óptimo'"></span>
                     </div>
-                    <p class="text-muted small">Meta quincenal obligatoria: <strong class="text-dark">10 Unidades</strong></p>
+                    <p class="text-muted small">Meta quincenal obligatoria: <strong class="text-dark" x-text="(progresoData.metricas?.meta_unidades_reino || 0) + ' Unidades'"></strong></p>
                     
                     <div class="my-3">
                         <div class="d-flex justify-content-between fw-bold mb-1">
-                            <span x-text="(progresoData.metricas?.unidades_reino_total || 0) + ' / 10 un.'"></span>
+                            <span x-text="(progresoData.metricas?.unidades_reino_total || 0) + ' / ' + (progresoData.metricas?.meta_unidades_reino || 0) + ' un.'"></span>
                             <span x-text="(progresoData.metricas?.porcentaje_reino || 0) + '%'"></span>
                         </div>
                         <div class="progress" style="height: 25px;">
@@ -153,13 +142,13 @@
                 <div class="card shadow-sm border-0 h-100 p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="fw-bold text-primary mb-0">🌸 Progreso Marzzan (PSD)</h5>
-                        <span class="badge bg-secondary" x-text="'Margen: ' + (progresoData.experto?.margen_marzzan || '45%')"></span>
+                        <span class="badge bg-secondary" x-text="'Margen: ' + (progresoData.experto?.margen_marzzan || '—')"></span>
                     </div>
-                    <p class="text-muted small">Mínimo quincenal en Costo Distribuidora: <strong class="text-dark">$70.000 PSD</strong></p>
+                    <p class="text-muted small">Mínimo quincenal en Costo Distribuidora: <strong class="text-dark" x-text="formatMoney(progresoData.metricas?.meta_psd_marzzan) + ' PSD'"></strong></p>
                     
                     <div class="my-3">
                         <div class="d-flex justify-content-between fw-bold mb-1">
-                            <span x-text="'$' + (progresoData.metricas?.total_psd_marzzan || 0).toLocaleString() + ' / $70,000'"></span>
+                            <span x-text="formatMoney(progresoData.metricas?.total_psd_marzzan) + ' / ' + formatMoney(progresoData.metricas?.meta_psd_marzzan)"></span>
                             <span x-text="(progresoData.metricas?.porcentaje_marzzan || 0) + '%'"></span>
                         </div>
                         <div class="progress" style="height: 25px;">
@@ -171,14 +160,68 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ROL, CUENTA Y TERMÓMETROS Q1/Q2 (todo viene del backend) -->
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0 p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="fw-bold text-success mb-0">🎯 Cierres Q1 y Q2 de este mes</h5>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge bg-success" x-text="progresoData.experto?.rol_comercial || progresoData.experto?.rol || 'Sin rol'"></span>
+                            <a href="cuenta-corriente.html" class="btn btn-sm btn-outline-success">💳 Cuenta corriente</a>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <template x-for="q in ['Q1', 'Q2']" :key="q">
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 h-100 bg-white">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong class="text-dark" x-text="'Cierre ' + q"></strong>
+                                        <span class="badge" :class="quincena(q).alcanzado_reino && quincena(q).alcanzado_marzzan ? 'bg-success' : 'bg-warning text-dark'"
+                                              x-text="quincena(q).alcanzado_reino && quincena(q).alcanzado_marzzan ? 'Metas cubiertas' : 'En curso'"></span>
+                                    </div>
+                                    <div class="small text-muted mb-2" x-text="quincena(q).ciclo ? ('Ciclo ' + quincena(q).ciclo.anio + '-' + quincena(q).ciclo.mes + ' Q' + quincena(q).ciclo.quincena) : 'Sin ciclo abierto'"></div>
+                                    <div class="d-flex justify-content-between small fw-semibold">
+                                        <span>Reino</span>
+                                        <span x-text="(quincena(q).unidades_reino || 0) + ' / ' + (quincena(q).meta_reino || 0) + ' un.'"></span>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 12px;">
+                                        <div class="progress-bar bg-success" role="progressbar" :style="'width: ' + (quincena(q).porcentaje_reino || 0) + '%'"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between small fw-semibold">
+                                        <span>Marzzan</span>
+                                        <span x-text="formatMoney(quincena(q).psd_marzzan) + ' / ' + formatMoney(quincena(q).meta_psd) + ' PSD'"></span>
+                                    </div>
+                                    <div class="progress" style="height: 12px;">
+                                        <div class="progress-bar bg-primary" role="progressbar" :style="'width: ' + (quincena(q).porcentaje_marzzan || 0) + '%'"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- VISTA 1: MIS PEDIDOS Y SEGUIMIENTO -->
     <div x-show="vistaActiva === 'mis_pedidos'" style="display: none;" :style="vistaActiva === 'mis_pedidos' ? 'display: block;' : 'display: none;'">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h4 class="fw-bold text-success mb-0">Historial de Mis Solicitudes</h4>
-            <span class="badge bg-secondary fs-6" x-text="'Total: ' + pedidos.length"></span>
+            <span class="badge bg-secondary fs-6" x-text="'Total: ' + totalPedidos"></span>
+        </div>
+
+        <div class="row g-2 mb-4 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label small text-muted mb-1">Buscar por empresa o número de pedido</label>
+                <input type="search" class="form-control form-control-sm" x-model="busquedaPedidos" @input.debounce.350ms="buscarPedidos()"
+                       placeholder="Ej: Marzzan, 123">
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-sm btn-outline-secondary" :disabled="paginaPedidos === 0" @click="cambiarPagina(-1)">← Anterior</button>
+                <span class="small mx-2" x-text="'Página ' + (paginaPedidos + 1) + ' de ' + totalPaginasPedidos"></span>
+                <button class="btn btn-sm btn-outline-secondary" :disabled="(paginaPedidos + 1) >= totalPaginasPedidos" @click="cambiarPagina(1)">Siguiente →</button>
+            </div>
         </div>
 
         <div class="row g-4">
@@ -273,6 +316,44 @@
                                     </tfoot>
                                 </table>
                             </div>
+
+                            <div class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <button class="btn btn-sm btn-outline-primary" @click="verEntregas(p)">
+                                    🚚 Ver historial de entregas
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" @click="descargarComprobante(p)">🧾 Descargar comprobante</button>
+                            </div>
+
+                            <template x-if="pedidoAbiertoId === p.pedido_id">
+                                <div class="mt-3 border rounded p-3 bg-light">
+                                    <h6 class="fw-bold text-secondary mb-2">Entregas registradas</h6>
+                                    <template x-if="errorEntregas">
+                                        <div class="alert alert-danger py-2 small mb-2" x-text="errorEntregas"></div>
+                                    </template>
+                                    <template x-if="!entregasPedido.length && !errorEntregas">
+                                        <p class="small text-muted mb-0">Todavía no hay entregas registradas para este pedido.</p>
+                                    </template>
+                                    <template x-if="entregasPedido.length">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light small">
+                                                    <tr><th>Fecha</th><th>Producto</th><th class="text-center">Cantidad</th><th>Registrado por</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-for="e in entregasPedido" :key="e.id">
+                                                        <tr>
+                                                            <td x-text="e.fecha"></td>
+                                                            <td x-text="e.producto"></td>
+                                                            <td class="text-center" x-text="e.cantidad"></td>
+                                                            <td x-text="e.descripcion || e.registrado_por || '-'"></td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -312,9 +393,16 @@
             <hr>
             <h5 class="fw-bold text-secondary mb-3">Selección de Productos</h5>
             
+            <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                    <input type="search" class="form-control form-control-sm" x-model="busquedaProducto"
+                           @input.debounce.350ms="cargarProductos()"
+                           placeholder="Buscar por nombre o SKU (servidor)">
+                </div>
+            </div>
             <div class="row g-2 mb-3 align-items-end">
                 <div class="col-md-8">
-                    <label class="form-label small" x-text="'Buscar Producto en Catálogo (' + obtenerNombreEmpresaSeleccionada() + ')'"></label>
+                    <label class="form-label small" x-text="'Productos de ' + (obtenerNombreEmpresaSeleccionada() || 'la empresa seleccionada')"></label>
                     <select class="form-select" x-model.number="productoSeleccionadoId">
                         <option value="">-- Seleccione un producto --</option>
                         <template x-for="prod in productosFiltrados" :key="prod.id">
@@ -392,7 +480,7 @@
                     <h3 class="fw-bold text-dark mb-1" x-text="liderInfo.nombre || usuario?.nombre || 'Experta'"></h3>
                     <p class="text-muted small mb-0">
                         Código de Integrante: <strong class="text-success" x-text="liderInfo.codigo_integrante || 'Sin Código'"></strong> | 
-                        Localidad: <span x-text="liderInfo.localidad || 'Jesús María'"></span>
+                        Localidad: <span x-text="liderInfo.localidad || 'Sin localidad'"></span>
                     </p>
                 </div>
                 <div class="text-md-end bg-light p-3 rounded border">
@@ -597,14 +685,24 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 <script>
 function expertoDashboardApp() {
+    const VACIO_Q = {
+        unidades_reino: 0, meta_reino: 0, porcentaje_reino: 0, alcanzado_reino: false,
+        psd_marzzan: 0, meta_psd: 0, porcentaje_marzzan: 0, alcanzado_marzzan: false,
+        ciclo: null
+    };
     return {
         usuario: null,
         vistaActiva: 'mi_progreso',
         pedidos: [],
+        totalPedidos: 0,
+        paginaPedidos: 0,
+        busquedaPedidos: '',
+        controlPedidos: null,
         productosDisponibles: [],
+        busquedaProducto: '',
         empresasDisponibles: [],
         productoSeleccionadoId: '',
         cantidadItem: 1,
@@ -619,6 +717,8 @@ function expertoDashboardApp() {
         cargandoPedidosRed: false,
         errorPedidosRed: '',
         pedidoAbiertoId: null,
+        entregasPedido: [],
+        errorEntregas: '',
         nuevoPedido: {
             empresa_id: '',
             empresa: '',
@@ -626,118 +726,139 @@ function expertoDashboardApp() {
             detalles: []
         },
         init() {
-            if (typeof verificarSesion === 'function') verificarSesion();
-            
-            const usr = localStorage.getItem('usuario');
-            if (usr) {
-                try { this.usuario = JSON.parse(usr); } catch(e) { this.usuario = { id: 1, nombre: 'Experta' }; }
-            } else {
-                this.usuario = { id: 1, nombre: 'Experta' };
-            }
-            
+            if (!Sesion.requerirRol('experto')) return;
+            this.usuario = Sesion.usuario() || {};
             this.cargarProgresoQuincenal();
             this.cargarEmpresas();
             this.cargarMisPedidos();
             this.cargarProductos();
             this.cargarMiEquipo();
         },
+        formatMoney(valor) {
+            const numero = Number(valor || 0);
+            return '$' + numero.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        quincena(q) {
+            const quincenas = this.progresoData.quincenas || {};
+            return quincenas[q] || VACIO_Q;
+        },
         async cargarProgresoQuincenal() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/mis-progreso-quincenal`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.progresoData = data;
+                this.progresoData = await API.get('/mis-progreso-quincenal');
+                // Compatibilidad: si el endpoint legacy aún no expone Q1/Q2,
+                // se pide el detalle una sola vez.
+                if (!this.progresoData.quincenas) {
+                    const detalle = await API.get('/mi-progreso-quincenal-detalle');
+                    this.progresoData.quincenas = detalle.quincenas || {};
                 }
             } catch (err) {
-                console.error("Error al cargar progreso quincenal:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async cargarEmpresas() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.empresasDisponibles = data.data || [];
-                    if (this.empresasDisponibles.length > 0) {
-                        this.nuevoPedido.empresa_id = this.empresasDisponibles[0].id;
-                        this.cambiarEmpresa();
-                    }
+                const data = await API.get('/catalogo/empresas', { etag: true });
+                this.empresasDisponibles = data.data || [];
+                if (this.empresasDisponibles.length) {
+                    this.nuevoPedido.empresa_id = this.empresasDisponibles[0].id;
+                    this.cambiarEmpresa();
+                    this.cargarProductos();
                 }
             } catch (err) {
-                console.error("Error al cargar empresas:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
-        async cargarMisPedidos() {
+        async cargarMisPedidos(controlador) {
+            if (this.controlPedidos) this.controlPedidos.abort();
+            this.controlPedidos = controlador || API.controlador();
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/mis-pedidos/`, {
-                    headers: getAuthHeaders()
+                const data = await API.get('/mis-pedidos/paginados', {
+                    params: {
+                        skip: this.paginaPedidos * 20,
+                        limit: 20,
+                        q: this.busquedaPedidos.trim()
+                    },
+                    signal: this.controlPedidos.signal
                 });
-                const data = await res.json();
-                if (res.ok) this.pedidos = data.pedidos || [];
+                this.pedidos = data.pedidos || [];
+                this.totalPedidos = data.total || 0;
             } catch (err) {
-                console.error("Error al cargar pedidos:", err);
+                if (err.name !== 'AbortError') this.mensajeError = API.mensajeDeError(err);
             }
+        },
+        buscarPedidos() {
+            this.paginaPedidos = 0;
+            this.cargarMisPedidos();
+        },
+        cambiarPagina(delta) {
+            const totalPaginas = this.totalPaginasPedidos;
+            this.paginaPedidos = Math.max(0, Math.min(totalPaginas - 1, this.paginaPedidos + delta));
+            this.cargarMisPedidos();
+        },
+        get totalPaginasPedidos() {
+            return Math.max(1, Math.ceil(this.totalPedidos / 20));
         },
         async cargarProductos() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
-                    headers: getAuthHeaders()
+                const data = await API.get('/catalogo/productos', {
+                    params: {
+                        empresa_id: this.nuevoPedido.empresa_id,
+                        q: this.busquedaProducto.trim(),
+                        limit: 100
+                    },
+                    etag: true
                 });
-                const data = await res.json();
-                if (res.ok) {
-                    this.productosDisponibles = data.data || [];
-                }
+                this.productosDisponibles = data.data || [];
             } catch (err) {
-                console.error("Error al cargar catálogo:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async cargarMiEquipo() {
+            if (!this.usuario || !this.usuario.id) return;
             try {
-                const usuarioId = this.usuario ? this.usuario.id : 1;
-                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    this.liderInfo = data.lider || {};
-                    this.equipoDirecto = data.equipo_directo || [];
-                    this.totalIncorporados = data.total_incorporados_directos || 0;
-
-                    if (this.liderInfo.es_lider) {
-                        this.cargarPedidosRed();
-                    }
-                } else {
-                    throw new Error(data.detail || 'Error al cargar los datos del equipo');
-                }
+                const data = await API.get('/red/equipo/' + this.usuario.id);
+                this.liderInfo = data.lider || {};
+                this.equipoDirecto = data.equipo_directo || [];
+                this.totalIncorporados = data.total_incorporados_directos || 0;
+                if (this.liderInfo.es_lider) this.cargarPedidosRed();
             } catch (err) {
-                console.error("Error al consultar la red:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async cargarPedidosRed() {
-            if (this.cargandoPedidosRed) return;
+            if (this.cargandoPedidosRed || !this.usuario) return;
             this.cargandoPedidosRed = true;
             this.errorPedidosRed = '';
-
             try {
-                const usuarioId = this.usuario ? this.usuario.id : 0;
-                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}/pedidos`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'No se pudieron cargar los pedidos de la red');
-
+                const data = await API.get('/red/equipo/' + this.usuario.id + '/pedidos');
                 this.pedidosRed = data.pedidos || [];
             } catch (err) {
-                console.error("Error al cargar pedidos de la red:", err);
-                this.errorPedidosRed = err.message;
+                this.errorPedidosRed = API.mensajeDeError(err);
                 this.pedidosRed = [];
             } finally {
                 this.cargandoPedidosRed = false;
+            }
+        },
+        async descargarComprobante(pedido) {
+            try {
+                await API.descargarArchivo(
+                    '/pedidos/' + pedido.pedido_id + '/pdf',
+                    'pedido-' + pedido.pedido_id + '.pdf'
+                );
+            } catch (err) {
+                this.mensajeError = API.mensajeDeError(err);
+            }
+        },
+        async verEntregas(pedido) {
+            if (!pedido) return;
+            this.pedidoAbiertoId = pedido.pedido_id;
+            this.entregasPedido = [];
+            this.errorEntregas = '';
+            try {
+                const data = await API.get('/pedidos/' + pedido.pedido_id + '/entregas');
+                this.entregasPedido = data.entregas || data.data || [];
+            } catch (err) {
+                this.errorEntregas = API.mensajeDeError(err);
             }
         },
         estadoPagoTexto(estado) {
@@ -807,36 +928,41 @@ function expertoDashboardApp() {
         },
         cambiarEmpresa() {
             const empresaObj = this.empresasDisponibles.find(e => e.id === parseInt(this.nuevoPedido.empresa_id));
-            if (empresaObj) {
-                this.nuevoPedido.empresa = empresaObj.slug || empresaObj.nombre.toLowerCase();
-            }
-
+            if (empresaObj) this.nuevoPedido.empresa = empresaObj.slug || empresaObj.nombre.toLowerCase();
             this.productoSeleccionadoId = '';
-            if (this.nuevoPedido.detalles.length > 0) {
-                if (confirm('Al cambiar de empresa se limpiarán los productos agregados previamente. ¿Desea continuar?')) {
-                    this.nuevoPedido.detalles = [];
-                }
+            if (this.nuevoPedido.detalles.length && confirm('Al cambiar de empresa se limpiarán los productos agregados. ¿Continuar?')) {
+                this.nuevoPedido.detalles = [];
             }
         },
         agregarItemAlCarrito() {
-            if (!this.productoSeleccionadoId) return alert('Selecciona un producto');
-            const producto = this.productosDisponibles.find(p => p.id === parseInt(this.productoSeleccionadoId));
-            if (!producto) return;
-
+            this.mensajeError = '';
+            if (!this.productoSeleccionadoId) {
+                this.mensajeError = 'Seleccioná un producto de la lista.';
+                return;
+            }
+            const cantidad = parseInt(this.cantidadItem, 10);
+            if (!cantidad || cantidad <= 0) {
+                this.mensajeError = 'La cantidad debe ser mayor a cero.';
+                return;
+            }
+            const producto = this.productoSeleccionado;
+            if (!producto) {
+                this.mensajeError = 'El producto ya no está disponible.';
+                return;
+            }
             const precio = Number(producto.precio_unitario ?? producto.precio_venta ?? 0);
             const itemExistente = this.nuevoPedido.detalles.find(i => i.producto_id === producto.id);
             if (itemExistente) {
-                itemExistente.cantidad_solicitada += parseInt(this.cantidadItem);
+                itemExistente.cantidad_solicitada += cantidad;
             } else {
                 this.nuevoPedido.detalles.push({
                     producto_id: producto.id,
                     nombre: producto.nombre,
-                    cantidad_solicitada: parseInt(this.cantidadItem),
+                    cantidad_solicitada: cantidad,
                     precio_unitario: precio,
                     bajo_pedido: !!producto.bajo_pedido
                 });
             }
-            this.mensajeError = '';
             this.productoSeleccionadoId = '';
             this.cantidadItem = 1;
         },
@@ -844,44 +970,40 @@ function expertoDashboardApp() {
             this.nuevoPedido.detalles.splice(index, 1);
         },
         async enviarPedido() {
+            this.mensajeError = '';
+            if (!this.nuevoPedido.empresa) {
+                this.mensajeError = 'Seleccioná una empresa.';
+                return;
+            }
+            if (!this.nuevoPedido.detalles.length) {
+                this.mensajeError = 'Agregá al menos un producto.';
+                return;
+            }
             this.enviando = true;
             try {
                 const payload = {
-                    experto_id: this.usuario ? this.usuario.id : 0,
+                    experto_id: this.usuario.id,
                     empresa: this.nuevoPedido.empresa,
-                    fecha_limite: this.nuevoPedido.fecha_limite,
+                    fecha_limite: this.nuevoPedido.fecha_limite || null,
                     detalles: this.nuevoPedido.detalles.map(i => ({
                         producto_id: i.producto_id,
                         cantidad_solicitada: i.cantidad_solicitada
                     }))
                 };
-
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al crear el pedido');
-
+                const data = await API.post('/pedidos/', payload);
                 this.mensajeAlerta = `¡Pedido #${data.pedido_id} creado y enviado con éxito!`;
-                if (Array.isArray(data.advertencias) && data.advertencias.length > 0) {
-                    this.mensajeAlerta += ' ' + data.advertencias.map(a => a.mensaje).join(' ');
+                if (Array.isArray(data.advertencias) && data.advertencias.length) {
+                    this.mensajeAlerta += ' ' + data.advertencias.map(a => a.mensaje || a).join(' ');
                 }
                 this.nuevoPedido.detalles = [];
                 this.vistaActiva = 'mis_pedidos';
                 this.cargarMisPedidos();
                 this.cargarProgresoQuincenal();
             } catch (err) {
-                alert(`Error: ${err.message}`);
+                this.mensajeError = API.mensajeDeError(err);
             } finally {
                 this.enviando = false;
             }
-        },
-        cerrarSesion() {
-            localStorage.clear();
-            window.location.href = 'index.html';
         }
     }
 }

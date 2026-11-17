@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
+    <title>POS de Mostrador | Raíz & Esencia</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
+    <style>[x-cloak] { display: none !important; }</style>
+</head>
+<body class="bg-light" x-data="posApp()" x-init="init()" x-cloak>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="dashboard.html">← Volver al Panel Admin</a>
+        <span class="text-white small">🛒 Punto de Venta · Facturación Fantasía Verde</span>
+        <button class="btn btn-outline-light btn-sm ms-auto" @click="cerrarSesion()">Cerrar Sesión</button>
+    </div>
+</nav>
+
+<div class="container mb-5">
+    <template x-if="mensajeAlerta">
+        <div class="alert alert-success shadow-sm" role="alert" x-text="mensajeAlerta"></div>
+    </template>
+    <template x-if="mensajeError">
+        <div class="alert alert-danger shadow-sm" role="alert" x-text="mensajeError"></div>
+    </template>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3">1️⃣ Identificar la experta</div>
+                <div class="card-body">
+                    <form @submit.prevent="buscarExperta()">
+                        <label class="form-label small fw-semibold">Código de integrante</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" x-model="codigo" placeholder="Ej: RE-001"
+                                   autocomplete="off" required>
+                            <button class="btn btn-primary" :disabled="buscando">
+                                <span x-show="!buscando">Buscar</span>
+                                <span x-show="buscando" class="spinner-border spinner-border-sm"></span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <template x-if="experta">
+                        <div class="alert alert-light border mt-3 mb-0">
+                            <div class="fw-bold text-success fs-5" x-text="experta.nombre"></div>
+                            <div class="small text-muted" x-text="'Código ' + (experta.codigo_integrante || '—')"></div>
+                            <div class="small text-muted" x-text="'Marca: ' + (experta.marca_trabaja || '—')"></div>
+                            <div class="mt-2 small">
+                                Saldo actual:
+                                <strong :class="saldo < 0 ? 'text-danger' : 'text-success'" x-text="money(saldo)"></strong>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3">2️⃣ Armar la venta</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Empresa / marca</label>
+                        <select class="form-select" x-model="empresa" @change="cargarCatalogo()">
+                            <option value="reino">Reino</option>
+                            <option value="marzzan">Sandra Marzzan</option>
+                        </select>
+                    </div>
+
+                    <template x-if="ciclo">
+                        <p class="small text-muted">
+                            Ciclo abierto: <strong x-text="ciclo.nombre || (ciclo.anio + '-' + ciclo.mes + ' Q' + ciclo.quincena)"></strong>
+                            · cierra <span x-text="ciclo.fecha_fin"></span>
+                        </p>
+                    </template>
+
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Producto</label>
+                            <select class="form-select" x-model.number="productoId">
+                                <option value="0">-- Seleccione --</option>
+                                <template x-for="p in catalogo" :key="p.id">
+                                    <option :value="p.id" :disabled="p.stock_disponible <= 0"
+                                            x-text="p.nombre + ' · ' + money(p.precio_unitario) + ' · stock ' + p.stock_disponible"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Cant.</label>
+                            <input type="number" min="1" class="form-control" x-model.number="cantidad">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-success w-100" @click="agregarItem()">Agregar</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-2">
+                            <thead class="table-light small">
+                                <tr><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">P. unit.</th><th class="text-end">Subtotal</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, index) in carrito" :key="item.producto_id">
+                                    <tr>
+                                        <td x-text="item.nombre"></td>
+                                        <td class="text-center" x-text="item.cantidad"></td>
+                                        <td class="text-end" x-text="money(item.precio_unitario)"></td>
+                                        <td class="text-end fw-semibold" x-text="money(item.precio_unitario * item.cantidad)"></td>
+                                        <td class="text-end"><button class="btn btn-sm btn-outline-danger" @click="carrito.splice(index, 1)">✕</button></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total</td>
+                                    <td class="text-end fw-bold text-success" x-text="money(totalCarrito)"></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <button class="btn btn-success w-100 fw-bold py-2 mt-2"
+                            :disabled="!experta || !carrito.length || registrando"
+                            @click="confirmarVenta()">
+                        <span x-show="!registrando">💳 Registrar venta y emitir factura verde</span>
+                        <span x-show="registrando" class="spinner-border spinner-border-sm"></span>
+                    </button>
+                    <p class="small text-muted mt-2 mb-0">
+                        Una sola operación: descuenta stock, genera la factura, asienta la deuda y asocia el ciclo.
+                        La clave de idempotencia evita duplicados ante reintentos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template x-if="resultado">
+        <div class="card shadow-sm border-0 border-start border-4 border-success mt-4">
+            <div class="card-body">
+                <h5 class="fw-bold text-success" x-text="resultado.message"></h5>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-3"><span class="small text-muted">Pedido</span><div class="fw-bold" x-text="'#' + resultado.pedido_id"></div></div>
+                    <div class="col-md-3"><span class="small text-muted">Factura</span><div class="fw-bold" x-text="resultado.factura ? resultado.factura.numero : '—'"></div></div>
+                    <div class="col-md-3"><span class="small text-muted">Total</span><div class="fw-bold" x-text="money(resultado.total)"></div></div>
+                    <div class="col-md-3"><span class="small text-muted">Saldo experta</span><div class="fw-bold" x-text="money(resultado.saldo)"></div></div>
+                </div>
+                <button class="btn btn-sm btn-outline-success mt-3" @click="descargarFactura()">🧾 Descargar factura</button>
+                <a href="consolidacion.html" class="btn btn-sm btn-outline-primary mt-3">Ver consolidado</a>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+function posApp() {
+    const generarIdempotencia = () => {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return 'POS-' + window.crypto.randomUUID();
+        return 'POS-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    };
+    return {
+        codigo: '',
+        empresa: 'reino',
+        experta: null,
+        saldo: 0,
+        ciclo: null,
+        catalogo: [],
+        productoId: 0,
+        cantidad: 1,
+        carrito: [],
+        idempotencia: generarIdempotencia(),
+        buscando: false,
+        registrando: false,
+        resultado: null,
+        mensajeAlerta: '',
+        mensajeError: '',
+        init() {
+            if (!Sesion.requerirRol('admin')) return;
+        },
+        money(valor) {
+            const n = Number(valor || 0);
+            return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        get totalCarrito() {
+            return this.carrito.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0);
+        },
+        cerrarSesion() {
+            Sesion.limpiar();
+            window.location.href = 'index.html';
+        },
+        async buscarExperta() {
+            this.mensajeError = '';
+            this.mensajeAlerta = '';
+            this.experta = null;
+            this.carrito = [];
+            this.resultado = null;
+            if (!this.codigo.trim()) {
+                this.mensajeError = 'Ingresá el código de la experta.';
+                return;
+            }
+            this.buscando = true;
+            try {
+                const data = await API.get('/pos/expertas/buscar', { params: { codigo: this.codigo.trim() } });
+                this.experta = data.experta;
+                this.saldo = data.saldo || 0;
+                this.ciclo = data.ciclos && (data.ciclos[this.empresa] || data.ciclos.reino || data.ciclos.marzzan);
+                await this.cargarCatalogo();
+            } catch (err) {
+                this.mensajeError = API.mensajeDeError(err);
+            } finally {
+                this.buscando = false;
+            }
+        },
+        async cargarCatalogo() {
+            this.mensajeError = '';
+            this.catalogo = [];
+            this.carrito = [];
+            this.productoId = 0;
+            if (!this.experta) return;
+            try {
+                const data = await API.get('/pos/catalogo', {
+                    params: { codigo: this.codigo.trim(), empresa: this.empresa }
+                });
+                this.catalogo = data.data || [];
+                this.ciclo = data.ciclo;
+            } catch (err) {
+                this.mensajeError = API.mensajeDeError(err);
+            }
+        },
+        agregarItem() {
+            this.mensajeError = '';
+            const producto = this.catalogo.find(p => p.id === Number(this.productoId));
+            const cantidad = Number(this.cantidad);
+            if (!producto) {
+                this.mensajeError = 'Seleccioná un producto.';
+                return;
+            }
+            if (!Number.isInteger(cantidad) || cantidad <= 0) {
+                this.mensajeError = 'La cantidad debe ser un entero mayor a cero.';
+                return;
+            }
+            const yaCargado = this.carrito.find(i => i.producto_id === producto.id);
+            const totalPedido = (yaCargado ? yaCargado.cantidad : 0) + cantidad;
+            if (totalPedido > producto.stock_disponible) {
+                this.mensajeError = `Stock disponible insuficiente: ${producto.stock_disponible} unidades de ${producto.nombre}.`;
+                return;
+            }
+            if (yaCargado) yaCargado.cantidad = totalPedido;
+            else this.carrito.push({
+                producto_id: producto.id,
+                nombre: producto.nombre,
+                precio_unitario: producto.precio_unitario,
+                cantidad: cantidad
+            });
+            this.productoId = 0;
+            this.cantidad = 1;
+        },
+        async confirmarVenta() {
+            this.mensajeError = '';
+            this.mensajeAlerta = '';
+            if (!this.experta || !this.carrito.length) return;
+            this.registrando = true;
+            try {
+                const payload = {
+                    codigo_integrante: this.experta.codigo_integrante,
+                    empresa: this.empresa,
+                    items: this.carrito.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
+                    idempotencia: this.idempotencia
+                };
+                this.resultado = await API.post('/pos/ventas', payload);
+                this.mensajeAlerta = this.resultado.message;
+                this.saldo = this.resultado.saldo;
+                this.carrito = [];
+                this.idempotencia = generarIdempotencia();
+                await this.cargarCatalogo();
+            } catch (err) {
+                this.mensajeError = API.mensajeDeError(err);
+            } finally {
+                this.registrando = false;
+            }
+        },
+        async descargarFactura() {
+            if (!this.resultado || !this.resultado.factura) return;
+            try {
+                await API.descargarArchivo('/comprobantes/' + this.resultado.factura.id + '/pdf',
+                    'factura-' + (this.resultado.factura.numero || this.resultado.pedido_id) + '.pdf');
+            } catch (err) {
+                this.mensajeError = API.mensajeDeError(err);
+            }
+        }
+    }
+}
+</script>
+</body>
+</html>

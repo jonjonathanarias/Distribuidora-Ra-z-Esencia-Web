@@ -2,12 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
     <title>Cuenta Corriente y Semáforo Financiero</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="js/config.js"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
     <style>
         [x-cloak] { display: none !important; }
         .master-scroll { max-height: 520px; overflow-y: auto; }
@@ -668,18 +673,11 @@ function ccApp() {
         ultimoComprobante: null,
 
         init() {
-            const usr = localStorage.getItem('usuario');
-            if (usr) {
-                try {
-                    const u = JSON.parse(usr);
-                    this.esAdmin = u.rol === 'admin';
-                    this.volverUrl = this.esAdmin ? 'dashboard.html' : 'dashboard_experto.html';
-                } catch (e) { /* mantener dashboard.html */ }
-            }
-            verificarSesion();
-            if (this.esAdmin) {
-                this.cargarMaster(1);
-            }
+            if (!Sesion.verificar()) return;
+            const u = Sesion.usuario() || {};
+            this.esAdmin = u.rol === 'admin';
+            this.volverUrl = this.esAdmin ? 'dashboard.html' : 'dashboard_experto.html';
+            if (this.esAdmin) this.cargarMaster(1);
             this.cargarListaExpertas();
         },
         money(valor) {
@@ -731,19 +729,11 @@ function ccApp() {
             try {
                 // El backend devuelve solo las expertas que este usuario puede consultar:
                 // admin -> todas; líder -> ella + su equipo directo; experta -> solo ella.
-                const res = await fetch(`${CONFIG.API_BASE_URL}/red/mis-expertas`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.listaExpertas = data.data || [];
-                    // Si hay expertas, seleccionamos la primera por defecto automáticamente
-                    if (this.listaExpertas.length > 0) {
-                        this.expertoId = this.listaExpertas[0].id;
-                        this.cargarCuenta();
-                    }
-                } else {
-                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar el listado de expertas'));
+                const data = await API.get('/red/mis-expertas');
+                this.listaExpertas = data.data || [];
+                if (this.listaExpertas.length) {
+                    this.expertoId = this.listaExpertas[0].id;
+                    this.cargarCuenta();
                 }
             } catch (err) {
                 console.error("Error al cargar lista de expertas:", err);
@@ -763,13 +753,7 @@ function ccApp() {
             }
 
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/${this.expertoId}`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar la cuenta'));
-                }
+                const data = await API.get('/cuenta-corriente/' + this.expertoId);
                 this.saldoActual = Number(data.saldo_actual || 0);
                 this.semaforoTexto = data.semaforo_financiero || '🟢 VERDE';
                 this.movimientos = data.historial_movimientos || [];
@@ -780,7 +764,7 @@ function ccApp() {
                 this.cargarConciliacion();
             } catch (err) {
                 console.error(err);
-                this.mensajeError = err.message || 'No se pudo cargar la cuenta corriente.';
+                this.mensajeError = API.mensajeDeError(err) || 'No se pudo cargar la cuenta corriente.';
                 this.movimientos = [];
                 this.pedidos = [];
                 this.comisiones = [];
@@ -792,18 +776,11 @@ function ccApp() {
             if (!this.expertoId) return;
             this.conciliacionError = '';
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/cuenta-corriente/${this.expertoId}/conciliacion`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(this.mensajeErrorApi(data, 'No se pudo calcular la conciliación.'));
-                }
-                this.conciliacion = data;
+                this.conciliacion = await API.get('/cuenta-corriente/' + this.expertoId + '/conciliacion');
             } catch (err) {
                 console.error(err);
                 this.conciliacion = null;
-                this.conciliacionError = err.message || 'No se pudo calcular la conciliación.';
+                this.conciliacionError = API.mensajeDeError(err) || 'No se pudo calcular la conciliación.';
             }
         },
         async seleccionarExperta(id, scroll = false) {
@@ -829,13 +806,7 @@ function ccApp() {
                 params.set('page', Math.max(1, Number(page) || 1));
                 params.set('limit', Number(this.masterFiltros.limit) || 10);
 
-                const res = await fetch(`${CONFIG.API_BASE_URL}/admin/cuenta-corriente?${params.toString()}`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(this.mensajeErrorApi(data, 'No se pudo cargar la tabla maestra'));
-                }
+                const data = await API.get('/admin/cuenta-corriente', { params: params });
                 this.master = {
                     data: data.data || [],
                     resumen: data.resumen || {},
@@ -846,7 +817,7 @@ function ccApp() {
                 };
             } catch (err) {
                 console.error(err);
-                this.masterError = err.message || 'No se pudo cargar la tabla maestra.';
+                this.masterError = API.mensajeDeError(err) || 'No se pudo cargar la tabla maestra.';
             } finally {
                 this.masterCargando = false;
             }
@@ -911,16 +882,7 @@ function ccApp() {
                     idempotencia: this.pagoForm.idempotencia || null
                 };
 
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pagos/asentar`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(this.mensajeErrorApi(data, 'No se pudo asentar el pago.'));
-                }
-
+                const data = await API.post('/pagos/asentar', payload);
                 this.ultimoComprobante = data.comprobante || null;
                 const numero = data.comprobante && data.comprobante.numero
                     ? ' · Recibo ' + data.comprobante.numero
@@ -943,7 +905,7 @@ function ccApp() {
                 }
             } catch (err) {
                 console.error(err);
-                this.pagoError = err.message || 'No se pudo asentar el pago.';
+                this.pagoError = API.mensajeDeError(err) || 'No se pudo asentar el pago.';
             } finally {
                 this.pagoEnviando = false;
             }
@@ -991,22 +953,17 @@ function ccApp() {
             };
             return clases[estado] || 'bg-light text-dark border';
         },
+        rutaApi(url) {
+            if (!url) return '';
+            const base = (window.CONFIG && CONFIG.API_BASE_URL) || '';
+            if (base && url.indexOf(base) === 0) return url.slice(base.length) || '/';
+            return /^https?:\/\//i.test(url) ? new URL(url).pathname + new URL(url).search : url;
+        },
         async descargarArchivo(url, nombreArchivo) {
             try {
-                const res = await fetch(url, { headers: getAuthHeaders() });
-                if (!res.ok) throw new Error('Error al generar el PDF');
-
-                const blob = await res.blob();
-                const urlBlob = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = urlBlob;
-                a.download = nombreArchivo;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(urlBlob);
+                await API.descargarArchivo(this.rutaApi(url), nombreArchivo);
             } catch (err) {
-                alert(`Error al descargar el PDF: ${err.message}`);
+                this.mensajeError = 'Error al descargar el PDF: ' + API.mensajeDeError(err);
             }
         },
         async descargarMovimientoPdf(mov) {

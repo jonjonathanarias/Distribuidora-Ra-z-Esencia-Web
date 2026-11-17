@@ -1,0 +1,32 @@
+{
+  "name": "Raíz & Esencia · Gestión Comercial",
+  "short_name": "R&E",
+  "description": "Panel comercial de Distribuidora Raíz & Esencia y Sandra Marzzan.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fcfaf7",
+  "theme_color": "#1b4332",
+  "lang": "es-AR",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

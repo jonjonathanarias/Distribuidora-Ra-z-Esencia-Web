@@ -128,7 +128,9 @@ function registroUsuarioApp() {
         mensajeAlerta: '',
         mensajeError: '',
         enviando: false,
-        init() {},
+        init() {
+            Sesion.requerirRol('admin');
+        },
         async registrarUsuario() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
@@ -142,15 +144,7 @@ function registroUsuarioApp() {
             }
 
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/registro`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(this.form)
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al registrar al usuario');
-
+                const data = await API.post('/auth/registro', this.form);
                 this.mensajeAlerta = `¡Integrante registrado con éxito! Código asignado: ${data.codigo_integrante}.`;
                 
                 // Limpiar formulario
@@ -161,7 +155,7 @@ function registroUsuarioApp() {
                 };
                 this.marcasSeleccionadas = [];
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             } finally {
                 this.enviando = false;
             }

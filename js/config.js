@@ -1,31 +1,6 @@
 const CONFIG = {
-    // Al probar localmente usás tu FastAPI local:
-    API_BASE_URL: 'http://127.0.0.1:8000'
-    // Para cuando despliegues el backend a producción:
-    // API_BASE_URL: 'https://api.tu-distribuidora.com'
-    //API_BASE_URL: 'http://0.0.0.0:8000'
-    //API_BASE_URL:'https://nnsh0cd2-8000.brs.devtunnels.ms'
+    // Endpoint de la API. En producción se puede override desde el service worker
+    // o desde una variable global inyectada antes de cargar este archivo.
+    API_BASE_URL: (typeof window !== 'undefined' && window.API_BASE_URL) ||
+        'http://127.0.0.1:8000'
 };
-
-function getAuthHeaders() {
-    const token = localStorage.getItem('jwt_token');
-    return {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
-
-// Guard de navegación para páginas protegidas
-function verificarSesion() {
-    const token = localStorage.getItem('jwt_token');
-    if (!token) {
-        window.location.href = 'index.html';
-    }
-}
-
-// Cerrar sesión limpiando el almacenamiento local
-function cerrarSesion() {
-    localStorage.removeItem('jwt_token');
-    window.location.href = 'index.html';
-}

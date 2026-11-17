@@ -2,12 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
     <title>Panel de Administración | Raíz & Esencia</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="js/config.js"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
 </head>
 <body class="bg-light" x-data="dashboardApp()" x-init="init()">
 
@@ -24,6 +29,8 @@
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" x-text="pedidosPendientesCount"></span>
                 </template>
             </a>
+            <a href="pos.html" class="btn btn-outline-light btn-sm px-3 fw-semibold">🛒 POS</a>
+            <a href="consolidacion.html" class="btn btn-outline-light btn-sm px-3 fw-semibold">📊 Consolidado</a>
             <a href="cuenta-corriente.html" class="btn btn-outline-light btn-sm px-3 fw-semibold">💳 Cuentas Corrientes</a>
             <button class="btn btn-light btn-sm text-primary fw-bold px-3 ms-2 shadow-sm" onclick="cerrarSesion()">Cerrar Sesión</button>
         </div>
@@ -68,6 +75,11 @@
     <!-- BARRA DE PESTAÑAS PRINCIPALES -->
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body py-2 px-3 d-flex flex-wrap gap-2 justify-content-center bg-white rounded-3">
+            <button class="btn btn-sm fw-semibold px-3 py-2"
+                    :class="seccionActiva === 'metricas' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'"
+                    @click="seccionActiva = 'metricas'; cargarMetricas()">
+                📈 Métricas Reales
+            </button>
             <button class="btn btn-sm fw-semibold px-3 py-2" 
                     :class="seccionActiva === 'cierres' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'" 
                     @click="seccionActiva = 'cierres'">
@@ -93,6 +105,63 @@
                     @click="seccionActiva = 'stock'">
                 📦 Gestión de Stock
             </button>
+        </div>
+    </div>
+
+    <!-- 0. SECCIÓN: MÉTRICAS REALES DEL BACKEND -->
+    <div x-show="seccionActiva === 'metricas'" style="display: none;" :style="seccionActiva === 'metricas' ? 'display: block;' : 'display: none;'">
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-4 border-danger h-100 p-3">
+                    <span class="text-muted small">Deuda total (libro mayor)</span>
+                    <h3 class="fw-bold text-danger mb-0" x-text="formatMoney(metricas.deuda_total)"></h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-4 border-success h-100 p-3">
+                    <span class="text-muted small">Recaudado este mes</span>
+                    <h3 class="fw-bold text-success mb-0" x-text="formatMoney(metricas.recaudado_mes)"></h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-4 border-warning h-100 p-3">
+                    <span class="text-muted small">Pedidos pendientes</span>
+                    <h3 class="fw-bold text-dark mb-0" x-text="metricas.pedidos_pendientes || 0"></h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-4 border-primary h-100 p-3">
+                    <span class="text-muted small">Expertas activas</span>
+                    <h3 class="fw-bold text-primary mb-0" x-text="metricas.totales?.expertas_activas || 0"></h3>
+                </div>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 p-4 h-100">
+                    <h5 class="fw-bold text-dark mb-3">Ventas por marca</h5>
+                    <canvas id="graficoMarcas" height="180"></canvas>
+                    <template x-if="!(metricas.ventas_por_marca || []).length">
+                        <p class="small text-muted mb-0">No hay ventas computables para el período.</p>
+                    </template>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 p-4 h-100">
+                    <h5 class="fw-bold text-dark mb-3">Embudo de roles</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light small"><tr><th>Rol</th><th class="text-end">Expertas</th></tr></thead>
+                            <tbody>
+                                <template x-for="rol in (metricas.embudo_roles || [])" :key="rol.rol">
+                                    <tr><td x-text="rol.rol"></td><td class="text-end fw-bold" x-text="rol.cantidad"></td></tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <canvas id="graficoRoles" height="160" class="mt-3"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -144,15 +213,8 @@
                                     </template>
                                 </select>
                             </div>
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-secondary">Unidades Equipo</label>
-                                    <input type="number" class="form-control" x-model="mensual.unidadesEquipo" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-secondary">Facturación Neta ($)</label>
-                                    <input type="number" step="0.01" class="form-control" x-model="mensual.facturacionNeta" required>
-                                </div>
+                            <div class="alert alert-info py-2 small mb-3">
+                                ℹ️ La estructura de la red, el volumen real y la facturación neta se calculan en el servidor desde los pedidos. No se envían números desde el panel.
                             </div>
                             <button type="submit" class="btn btn-success w-100 fw-semibold py-2 mt-2">💰 Liquidar Comisión 10%</button>
                         </form>
@@ -179,13 +241,10 @@
                                         </template>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small fw-semibold text-secondary">Unidades Cierre Q1</label>
-                                    <input type="number" class="form-control" x-model.number="reinoMensual.unidadesQ1" min="0" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small fw-semibold text-secondary">Unidades Cierre Q2</label>
-                                    <input type="number" class="form-control" x-model.number="reinoMensual.unidadesQ2" min="0" required>
+                                <div class="col-md-6">
+                                    <div class="alert alert-info py-2 small mb-0 h-100">
+                                        ℹ️ Las unidades de Q1 y Q2 se leen de los cierres persistidos. El panel no carga valores manuales.
+                                    </div>
                                 </div>
                                 <div class="col-md-2">
                                     <button type="submit" class="btn btn-success w-100 fw-semibold py-2">🔍 Auditar Reino</button>
@@ -570,10 +629,12 @@
 <script>
 function dashboardApp() {
     return {
-        seccionActiva: 'cierres',
+        seccionActiva: 'metricas',
+        metricas: {},
+        graficosCargados: false,
         quincenal: { expertoId: '' },
-        mensual: { liderId: '', unidadesEquipo: 120, facturacionNeta: 350000 },
-        reinoMensual: { expertoId: '', unidadesQ1: 10, unidadesQ2: 10 },
+        mensual: { liderId: '' },
+        reinoMensual: { expertoId: '' },
         resultado: null,
         empresas: [],
         empresaSeleccionadaId: '',
@@ -602,66 +663,84 @@ function dashboardApp() {
         enviandoReg: false,
 
         init() {
-            if (typeof verificarSesion === 'function') verificarSesion();
+            if (!Sesion.requerirRol('admin')) return;
+            this.cargarMetricas();
             this.cargarEmpresas();
             this.cargarProductosStock();
             this.cargarAuditoriaRed();
-            this.consultarPedidosPendientes();
         },
-        async consultarPedidosPendientes() {
+        formatMoney(valor) {
+            const numero = Number(valor || 0);
+            return '$' + numero.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        async cargarMetricas() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok && data.pedidos) {
-                    this.pedidosPendientesCount = data.pedidos.filter(p => p.estado === 'pendiente').length;
-                }
+                this.metricas = await API.get('/dashboard/metricas');
+                this.pedidosPendientesCount = this.metricas.pedidos_pendientes || 0;
+                await this.cargarGraficos();
             } catch (err) {
-                console.error("Error al consultar pedidos pendientes:", err);
+                this.mensajeError = API.mensajeDeError(err);
+            }
+        },
+        async cargarGraficos() {
+            if (this.graficosCargados || typeof Chart !== 'undefined') {
+                this.graficosCargados = true;
+            } else {
+                await API.cargarScript(
+                    'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+                    'sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4'
+                );
+                this.graficosCargados = true;
+            }
+            const marcas = this.metricas.ventas_por_marca || [];
+            const roles = this.metricas.embudo_roles || [];
+            const ctxMarcas = document.getElementById('graficoMarcas');
+            const ctxRoles = document.getElementById('graficoRoles');
+            if (ctxMarcas && marcas.length) {
+                new Chart(ctxMarcas, {
+                    type: 'bar',
+                    data: {
+                        labels: marcas.map(m => m.empresa),
+                        datasets: [{ label: 'Ventas', data: marcas.map(m => m.total), backgroundColor: '#1b4332' }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
+                });
+            }
+            if (ctxRoles && roles.length) {
+                new Chart(ctxRoles, {
+                    type: 'bar',
+                    data: {
+                        labels: roles.map(r => r.rol),
+                        datasets: [{ label: 'Expertas', data: roles.map(r => r.cantidad), backgroundColor: '#d4a373' }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                });
             }
         },
         async cargarEmpresas() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.empresas = data.data || [];
-                    if (this.empresas.length > 0) {
-                        this.empresaSeleccionadaId = this.empresas[0].id;
-                    }
-                }
+                const data = await API.get('/catalogo/empresas', { etag: true });
+                this.empresas = data.data || [];
+                if (this.empresas.length) this.empresaSeleccionadaId = this.empresas[0].id;
             } catch (err) {
-                console.error("Error al cargar empresas:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async cargarProductosStock() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.productosStock = data.data || [];
-                }
+                const data = await API.get('/catalogo/productos', { params: { limit: 100 }, etag: true });
+                this.productosStock = data.data || [];
             } catch (err) {
-                console.error("Error al cargar productos para stock:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async cargarAuditoriaRed() {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/red/auditoria-global`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    this.auditoriaData = data;
-                    this.listaLideres = data.auditoria_general || [];
-                }
+                const data = await API.get('/red/auditoria-global');
+                this.auditoriaData = data;
+                this.listaLideres = data.auditoria_general || [];
             } catch (err) {
-                console.error("Error al cargar auditoría de red:", err);
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async verRedCompleta(usuarioId) {
@@ -676,42 +755,36 @@ function dashboardApp() {
             this.cargandoRed = true;
 
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/red/equipo/${usuarioId}`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'No se pudo cargar la red completa');
-                this.redDetalle = data;
+                this.redDetalle = await API.get('/red/equipo/' + usuarioId);
             } catch (err) {
-                console.error("Error al cargar red completa:", err);
-                this.errorRed = err.message;
+                this.errorRed = API.mensajeDeError(err);
             } finally {
                 this.cargandoRed = false;
             }
         },
         async ejecutarCierreMasivo() {
-            if (!confirm("¿Confirma que desea ejecutar el cierre mensual masivo para todas las líderes calificadas de la red?")) return;
-            
+            if (!confirm("¿Confirma que desea ejecutar los cierres mensuales del mes en curso? El servidor recalculará todas las magnitudes y respetará los cierres ya liquidados.")) return;
+
             this.ejecutandoMasivo = true;
             this.mensajeAlerta = '';
             this.mensajeError = '';
 
             try {
-                const lideres = this.auditoriaData.auditoria_general || [];
-                let procesados = 0;
-
-                for (const lider of lideres) {
-                    if (lider.incorporados_directos >= 10) {
-                        const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual/${lider.id}?unidades_equipo_total=100&unidades_personales_c1=10&unidades_personales_c2=10&facturacion_neta_equipo=350000`;
-                        const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
-                        if (res.ok) procesados++;
-                    }
+                const hoy = new Date();
+                const data = await API.post('/cierres-mensuales/ejecutar-todo', {
+                    anio: hoy.getFullYear(),
+                    mes: hoy.getMonth() + 1
+                });
+                const procesados = Object.keys(data.resultados || {}).length;
+                this.mensajeAlerta = (data.message || 'Cierres mensuales procesados.') +
+                    ' Tipos liquidados: ' + procesados + '.';
+                if (data.errores && Object.keys(data.errores).length) {
+                    this.mensajeError = 'Detalle: ' + JSON.stringify(data.errores);
                 }
-
-                this.mensajeAlerta = `¡Cierre mensual masivo completado con éxito! Se liquidaron comisiones para ${procesados} líderes calificadas.`;
+                this.resultado = data;
                 this.cargarAuditoriaRed();
             } catch (err) {
-                this.mensajeError = "Error al ejecutar el cierre masivo: " + err.message;
+                this.mensajeError = 'Error al ejecutar el cierre masivo: ' + API.mensajeDeError(err);
             } finally {
                 this.ejecutandoMasivo = false;
             }
@@ -738,16 +811,12 @@ function dashboardApp() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/productos/${producto.id}/stock?nuevo_stock=${producto.stock_actual}`, {
-                    method: 'PUT',
-                    headers: getAuthHeaders()
+                await API.put('/productos/' + producto.id + '/stock', null, {
+                    params: { nuevo_stock: producto.stock_actual }
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al actualizar el stock');
-
                 this.mensajeAlerta = `¡Stock actualizado con éxito para "${producto.nombre}" (${producto.stock_actual} unidades)!`;
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async registrarUsuario() {
@@ -762,15 +831,7 @@ function dashboardApp() {
             }
 
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/registro`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(this.formReg)
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al registrar al usuario');
-
+                const data = await API.post('/auth/registro', this.formReg);
                 this.mensajeAlerta = `¡Integrante registrado con éxito! Código asignado: ${data.codigo_integrante}.`;
                 
                 this.formReg = {
@@ -781,7 +842,7 @@ function dashboardApp() {
                 this.marcasSeleccionadas = [];
                 this.cargarAuditoriaRed();
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             } finally {
                 this.enviandoReg = false;
             }
@@ -794,14 +855,12 @@ function dashboardApp() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
             try {
-                const url = `${CONFIG.API_BASE_URL}/red/cierre-quincenal/${this.quincenal.expertoId}`;
-                const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error en cierre quincenal');
+                const data = await API.post('/red/cierre-quincenal/' + this.quincenal.expertoId);
+
                 this.resultado = data;
                 this.mensajeAlerta = "¡Cierre quincenal procesado y guardado con éxito!";
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async ejecutarMensual() {
@@ -812,14 +871,12 @@ function dashboardApp() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
             try {
-                const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual/${this.mensual.liderId}?unidades_equipo_total=${this.mensual.unidadesEquipo}&unidades_personales_c1=10&unidades_personales_c2=10&facturacion_neta_equipo=${this.mensual.facturacionNeta}`;
-                const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error en cierre mensual');
+                const data = await API.post('/red/cierre-mensual/' + this.mensual.liderId);
+
                 this.resultado = data;
                 this.mensajeAlerta = "Cierre mensual y liquidación procesados con éxito.";
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async ejecutarCierreReinoMensual() {
@@ -830,14 +887,12 @@ function dashboardApp() {
             this.mensajeAlerta = '';
             this.mensajeError = '';
             try {
-                const url = `${CONFIG.API_BASE_URL}/red/cierre-mensual-reino/${this.reinoMensual.expertoId}?unidades_quincena_1=${this.reinoMensual.unidadesQ1}&unidades_quincena_2=${this.reinoMensual.unidadesQ2}`;
-                const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error en auditoría mensual de Reino');
+                const data = await API.post('/red/cierre-mensual-reino/' + this.reinoMensual.expertoId);
+
                 this.resultado = data;
                 this.mensajeAlerta = "¡Auditoría mensual diferida de Reino procesada con éxito!";
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             }
         },
         async importarExcel() {
@@ -859,23 +914,12 @@ function dashboardApp() {
             formData.append('file', fileInput.files[0]);
 
             try {
-                const headers = getAuthHeaders();
-                delete headers['Content-Type'];
-
-                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/${this.empresaSeleccionadaId}/importar-productos`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: formData
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo Excel');
-
+                const data = await API.form('/empresas/' + this.empresaSeleccionadaId + '/importar-productos', formData);
                 this.mensajeAlerta = `📊 Excel procesado con éxito. Productos nuevos: ${data.productos_nuevos} | Actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
                 this.cargarProductosStock();
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             } finally {
                 this.cargandoExcel = false;
             }
@@ -899,23 +943,12 @@ function dashboardApp() {
             formData.append('file', fileInput.files[0]);
 
             try {
-                const headers = getAuthHeaders();
-                delete headers['Content-Type'];
-
-                const res = await fetch(`${CONFIG.API_BASE_URL}/empresas/${this.empresaSeleccionadaId}/importar-pdf`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: formData
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al procesar el archivo PDF');
-
+                const data = await API.form('/empresas/' + this.empresaSeleccionadaId + '/importar-pdf', formData);
                 this.mensajeAlerta = `📄 PDF procesado con éxito. Productos nuevos: ${data.productos_nuevos} | Actualizados: ${data.productos_actualizados}.`;
                 fileInput.value = '';
                 this.cargarProductosStock();
             } catch (err) {
-                this.mensajeError = err.message;
+                this.mensajeError = API.mensajeDeError(err);
             } finally {
                 this.cargandoPdf = false;
             }

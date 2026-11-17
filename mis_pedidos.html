@@ -2,12 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
     <title>Mis Pedidos | REINO & Marzzan</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="js/config.js"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
 </head>
 <body class="bg-light" x-data="misPedidosApp()" x-init="init()">
 
@@ -21,15 +26,28 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold text-success mb-0">Historial y Estado de Mis Solicitudes</h4>
-        <span class="badge bg-secondary fs-6" x-text="'Total Pedidos: ' + pedidos.length"></span>
+        <span class="badge bg-secondary fs-6" x-text="'Total Pedidos: ' + totalPedidos"></span>
     </div>
 
-    <!-- Resumen financiero de todos mis pedidos -->
+    <div class="row g-2 mb-4 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label small text-muted mb-1">Buscar por empresa o número de pedido</label>
+            <input type="search" class="form-control form-control-sm" x-model="busqueda"
+                   @input.debounce.350ms="buscar()" placeholder="Ej: Reino, 123">
+        </div>
+        <div class="col-md-6 text-md-end">
+            <button class="btn btn-sm btn-outline-secondary" :disabled="pagina === 0" @click="cambiarPagina(-1)">← Anterior</button>
+            <span class="small mx-2" x-text="'Página ' + (pagina + 1) + ' de ' + totalPaginas"></span>
+            <button class="btn btn-sm btn-outline-secondary" :disabled="(pagina + 1) >= totalPaginas" @click="cambiarPagina(1)">Siguiente →</button>
+        </div>
+    </div>
+
+    <!-- Resumen financiero de la página cargada -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="small text-muted text-uppercase">Total facturado</div>
+                    <div class="small text-muted text-uppercase">Total facturado (página)</div>
                     <div class="fs-5 fw-bold" x-text="'$' + totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })"></div>
                 </div>
             </div>
@@ -162,11 +180,18 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 <script>
 function misPedidosApp() {
     return {
         pedidos: [],
+        totalPedidos: 0,
+        pagina: 0,
+        busqueda: '',
+        manejoPedidos: null,
+        get totalPaginas() {
+            return Math.max(1, Math.ceil(this.totalPedidos / 20));
+        },
         get totalFacturado() {
             return this.pedidos.reduce((acc, p) => acc + (p.total || 0), 0);
         },
@@ -223,20 +248,33 @@ function misPedidosApp() {
             return clases[estado] || 'bg-secondary text-white';
         },
         init() {
-            verificarSesion();
+            if (!Sesion.requerirRol('experto')) return;
+            this.cargarMisPedidos();
+        },
+        buscar() {
+            this.pagina = 0;
+            this.cargarMisPedidos();
+        },
+        cambiarPagina(delta) {
+            this.pagina = Math.max(0, Math.min(this.totalPaginas - 1, this.pagina + delta));
             this.cargarMisPedidos();
         },
         async cargarMisPedidos() {
+            if (this.manejoPedidos) this.manejoPedidos.abort();
+            this.manejoPedidos = API.controlador();
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/mis-pedidos/`, {
-                    headers: getAuthHeaders()
+                const data = await API.get('/mis-pedidos/paginados', {
+                    params: {
+                        q: this.busqueda.trim(),
+                        skip: this.pagina * 20,
+                        limit: 20
+                    },
+                    signal: this.manejoPedidos.signal
                 });
-                const data = await res.json();
-                if (res.ok) {
-                    this.pedidos = data.pedidos || [];
-                }
+                this.pedidos = data.pedidos || [];
+                this.totalPedidos = data.total || 0;
             } catch (err) {
-                console.error("Error al cargar tus pedidos:", err);
+                if (err.name !== 'AbortError') console.error('Error al cargar tus pedidos:', API.mensajeDeError(err));
             }
         }
     }

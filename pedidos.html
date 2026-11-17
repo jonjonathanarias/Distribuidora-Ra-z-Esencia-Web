@@ -2,12 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1b4332">
     <title>Gestión y Control de Pedidos | Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="js/config.js"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="css/style.css?v=5" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js" integrity="sha384-GHFg+kjbwkV5Zd1wmxDjdvtA6PMCzkf9vf+Tw2vxhIOXe3eHhtcsKc0nRrrcOg/O" crossorigin="anonymous"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
 </head>
 <body class="bg-light" x-data="pedidosApp()" x-init="init()">
 
@@ -27,35 +32,45 @@
         <div class="col-md-8">
             <div class="input-group">
                 <span class="input-group-text bg-white">🔍</span>
-                <input type="text" class="form-control" placeholder="Buscar por nombre de experta o líder..." x-model="filtroNombre">
-                <button class="btn btn-outline-secondary" type="button" x-show="filtroNombre" @click="filtroNombre = ''">Limpiar</button>
+                <input type="search" class="form-control" placeholder="Buscar por experta, código, empresa o pedido..."
+                       x-model="filtroNombre" @input.debounce.350ms="buscarPedidos()">
+                <button class="btn btn-outline-secondary" type="button" x-show="filtroNombre" @click="filtroNombre = ''; buscarPedidos()">Limpiar</button>
             </div>
         </div>
     </div>
 
     <!-- Pestañas de Filtro Rápido -->
     <div class="d-flex flex-wrap gap-2 mb-4">
-        <button class="btn btn-sm" :class="filtroEstado === 'pendiente' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="filtroEstado = 'pendiente'">
+        <button class="btn btn-sm" :class="filtroEstado === 'pendiente' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="cambiarFiltro('pendiente')">
             ⏳ Pendientes
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'aprobado' ? 'btn-info text-dark fw-bold shadow-sm' : 'btn-outline-info text-dark'" @click="filtroEstado = 'aprobado'">
+        <button class="btn btn-sm" :class="filtroEstado === 'aprobado' ? 'btn-info text-dark fw-bold shadow-sm' : 'btn-outline-info text-dark'" @click="cambiarFiltro('aprobado')">
             📋 Aprobados
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'entrega_parcial' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="filtroEstado = 'entrega_parcial'">
+        <button class="btn btn-sm" :class="filtroEstado === 'entrega_parcial' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-warning text-dark'" @click="cambiarFiltro('entrega_parcial')">
             ⚠️ Entrega Parcial
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'entregado' ? 'btn-success fw-bold shadow-sm' : 'btn-outline-success'" @click="filtroEstado = 'entregado'">
+        <button class="btn btn-sm" :class="filtroEstado === 'entregado' ? 'btn-success fw-bold shadow-sm' : 'btn-outline-success'" @click="cambiarFiltro('entregado')">
             ✅ Entregados
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'facturado' ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-primary'" @click="filtroEstado = 'facturado'">
+        <button class="btn btn-sm" :class="filtroEstado === 'facturado' ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-primary'" @click="cambiarFiltro('facturado')">
             📄 Facturados
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'rechazado' ? 'btn-dark fw-bold shadow-sm' : 'btn-outline-dark'" @click="filtroEstado = 'rechazado'">
+        <button class="btn btn-sm" :class="filtroEstado === 'rechazado' ? 'btn-dark fw-bold shadow-sm' : 'btn-outline-dark'" @click="cambiarFiltro('rechazado')">
             ❌ Rechazados
         </button>
-        <button class="btn btn-sm" :class="filtroEstado === 'todos' ? 'btn-secondary fw-bold shadow-sm' : 'btn-outline-secondary'" @click="filtroEstado = 'todos'">
+        <button class="btn btn-sm" :class="filtroEstado === 'todos' ? 'btn-secondary fw-bold shadow-sm' : 'btn-outline-secondary'" @click="cambiarFiltro('todos')">
             📂 Historial Completo
         </button>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <span class="badge bg-secondary fs-6" x-text="'Total: ' + totalPedidos + ' pedido(s)'"></span>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary" :disabled="pagina === 0" @click="cambiarPagina(-1)">← Anterior</button>
+            <span class="small" x-text="'Página ' + (pagina + 1) + ' de ' + totalPaginas"></span>
+            <button class="btn btn-sm btn-outline-secondary" :disabled="(pagina + 1) >= totalPaginas" @click="cambiarPagina(1)">Siguiente →</button>
+        </div>
     </div>
 
     <!-- Alertas Globales -->
@@ -101,9 +116,9 @@
                                             <td class="fw-bold" x-text="'#' + p.pedido_id"></td>
                                             <!-- ETIQUETA VISUAL EXPLÍCITA DE MODALIDAD -->
                                             <td>
-                                                <span class="badge px-2 py-1" 
-                                                      :class="p.modalidad === 'facturacion_verde' ? 'bg-success text-white' : 'bg-primary text-white'"
-                                                      x-text="p.modalidad === 'facturacion_verde' ? '🟢 Facturación Fantasía Verde (Mostrador/Stock)' : '🔵 Remito Azul (Pedido de Ciclo)'">
+                                                <span class="badge px-2 py-1"
+                                                      :class="modalidadClase(p.modalidad)"
+                                                      x-text="modalidadTexto(p.modalidad)">
                                                 </span>
                                             </td>
                                             <td>
@@ -204,9 +219,9 @@
                         <p class="mb-1"><strong>Empresa:</strong> <span class="badge bg-info text-dark" x-text="pedidoSeleccionado?.empresa"></span></p>
                         <p class="mb-0 mt-1">
                             <strong>Modalidad:</strong> 
-                            <span class="badge" 
-                                  :class="pedidoSeleccionado?.modalidad === 'facturacion_verde' ? 'bg-success' : 'bg-primary'"
-                                  x-text="pedidoSeleccionado?.modalidad === 'facturacion_verde' ? '🟢 Facturación Fantasía Verde (Mostrador)' : '🔵 Remito Azul (Pedido Programado)'">
+                            <span class="badge"
+                                  :class="modalidadClase(pedidoSeleccionado?.modalidad)"
+                                  x-text="modalidadTexto(pedidoSeleccionado?.modalidad)">
                             </span>
                         </p>
                     </div>
@@ -340,7 +355,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 <script>
 function pedidosApp() {
     const TRANSICIONES = {
@@ -376,6 +391,12 @@ function pedidosApp() {
         pedidosAgrupados: {},
         filtroNombre: '',
         filtroEstado: 'pendiente',
+        pagina: 0,
+        totalPedidos: 0,
+        controlPedidos: null,
+        get totalPaginas() {
+            return Math.max(1, Math.ceil(this.totalPedidos / 25));
+        },
         pedidoSeleccionado: null,
         itemsAjuste: [],
         mensajeAlerta: '',
@@ -389,7 +410,32 @@ function pedidosApp() {
         guardandoPago: false,
         modalPagoInstance: null,
         init() {
-            verificarSesion();
+            if (!Sesion.requerirRol('admin')) return;
+            this.cargarPedidos();
+        },
+        modalidadTexto(modalidad) {
+            const textos = {
+                facturacion_verde: '🟢 Facturación Fantasía Verde (Mostrador/Stock)',
+                remito_azul: '🔵 Remito Azul (Pedido de Ciclo)'
+            };
+            return textos[modalidad] || '—';
+        },
+        modalidadClase(modalidad) {
+            if (modalidad === 'facturacion_verde') return 'bg-success text-white';
+            if (modalidad === 'remito_azul') return 'bg-primary text-white';
+            return 'bg-secondary text-white';
+        },
+        buscarPedidos() {
+            this.pagina = 0;
+            this.cargarPedidos();
+        },
+        cambiarFiltro(estado) {
+            this.filtroEstado = estado;
+            this.pagina = 0;
+            this.cargarPedidos();
+        },
+        cambiarPagina(delta) {
+            this.pagina = Math.max(0, Math.min(this.totalPaginas - 1, this.pagina + delta));
             this.cargarPedidos();
         },
         estadoTexto(estado) {
@@ -405,32 +451,37 @@ function pedidosApp() {
             }));
         },
         async cargarPedidos() {
+            if (this.controlPedidos) this.controlPedidos.abort();
+            this.controlPedidos = API.controlador();
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/`, {
-                    headers: getAuthHeaders()
+                const data = await API.get('/pedidos/paginados', {
+                    params: {
+                        q: this.filtroNombre.trim(),
+                        estado: this.filtroEstado === 'todos' ? '' : this.filtroEstado,
+                        skip: this.pagina * 25,
+                        limit: 25
+                    },
+                    signal: this.controlPedidos.signal
                 });
-                const data = await res.json();
-                if (res.ok) {
-                    const agrupados = {};
-                    (data.pedidos || []).forEach(p => {
-                        const expId = p.experto.id || 'desconocido';
-                        if (!agrupados[expId]) {
-                            agrupados[expId] = {
-                                nombre: p.experto.nombre,
-                                codigo_integrante: p.experto.codigo_integrante,
-                                marca_trabaja: p.experto.marca_trabaja,
-                                pedidos: []
-                            };
-                        }
-                        if (p.estado === 'recibido_faltantes_ajustados') {
-                            p.estado = 'entregado';
-                        }
-                        agrupados[expId].pedidos.push(p);
-                    });
-                    this.pedidosAgrupados = agrupados;
-                }
+                const agrupados = {};
+                (data.pedidos || []).forEach(p => {
+                    const experto = p.experto || {};
+                    const expId = experto.id || 'desconocido';
+                    if (!agrupados[expId]) {
+                        agrupados[expId] = {
+                            nombre: experto.nombre || 'Sin experta',
+                            codigo_integrante: experto.codigo_integrante,
+                            marca_trabaja: experto.marca_trabaja || '—',
+                            pedidos: []
+                        };
+                    }
+                    if (p.estado === 'recibido_faltantes_ajustados') p.estado = 'entregado';
+                    agrupados[expId].pedidos.push(p);
+                });
+                this.pedidosAgrupados = agrupados;
+                this.totalPedidos = data.total || 0;
             } catch (err) {
-                console.error("Error al cargar pedidos:", err);
+                if (err.name !== 'AbortError') this.mensajeAlerta = API.mensajeDeError(err);
             }
         },
         calcularFaltantesPedido(pedido) {
@@ -478,41 +529,31 @@ function pedidosApp() {
         async cambiarEstado(pedido, nuevoEstado) {
             if (!pedido || !nuevoEstado || nuevoEstado === pedido.estado) return;
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${pedido.pedido_id}/estado?nuevo_estado=${encodeURIComponent(nuevoEstado)}`, {
-                    method: 'PUT',
-                    headers: getAuthHeaders()
+                const data = await API.put('/pedidos/' + pedido.pedido_id + '/estado', null, {
+                    params: { nuevo_estado: nuevoEstado }
                 });
-                const data = await res.json();
-                if (!res.ok) {
-                    const detalle = data.detail || 'Error al cambiar estado';
-                    const esCorreccion = /forzar/i.test(detalle);
-                    if (esCorreccion && confirm(`${detalle}\n\n¿Desea forzar la corrección administrativa?`)) {
-                        return this.forzarEstado(pedido, nuevoEstado);
-                    }
-                    throw new Error(detalle);
-                }
-
                 this.mensajeAlerta = data.message || `Estado del pedido #${pedido.pedido_id} actualizado a "${nuevoEstado}".`;
                 this.mensajeErrorModal = '';
                 await this.cargarPedidos(); 
             } catch (err) {
-                this.mensajeErrorModal = err.message;
+                const detalle = API.mensajeDeError(err);
+                if (/forzar/i.test(detalle) && confirm(detalle + '\n\n¿Desea forzar la corrección administrativa?')) {
+                    return this.forzarEstado(pedido, nuevoEstado);
+                }
+                this.mensajeErrorModal = detalle;
                 await this.cargarPedidos();
             }
         },
         async forzarEstado(pedido, nuevoEstado) {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${pedido.pedido_id}/estado?nuevo_estado=${encodeURIComponent(nuevoEstado)}&forzar=true`, {
-                    method: 'PUT',
-                    headers: getAuthHeaders()
+                const data = await API.put('/pedidos/' + pedido.pedido_id + '/estado', null, {
+                    params: { nuevo_estado: nuevoEstado, forzar: true }
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al cambiar estado');
                 this.mensajeAlerta = data.message;
                 this.mensajeErrorModal = '';
                 await this.cargarPedidos();
             } catch (err) {
-                this.mensajeErrorModal = err.message;
+                this.mensajeErrorModal = API.mensajeDeError(err);
                 await this.cargarPedidos();
             }
         },
@@ -568,14 +609,9 @@ function pedidosApp() {
             this.guardandoPago = true;
             this.mensajeErrorPago = '';
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${this.pedidoPago.pedido_id}/pagos`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ monto: parseFloat(this.pagoMonto) || 0 })
+                const data = await API.post('/pedidos/' + this.pedidoPago.pedido_id + '/pagos', {
+                    monto: parseFloat(this.pagoMonto) || 0
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al registrar el pago');
-
                 this.pedidoPago = { ...this.pedidoPago, ...data.pedido };
                 this.pagoMonto = data.pedido.saldo_pendiente || 0;
                 this.mensajeAlerta = data.message;
@@ -584,7 +620,7 @@ function pedidosApp() {
                     this.modalPagoInstance.hide();
                 }
             } catch (err) {
-                this.mensajeErrorPago = err.message;
+                this.mensajeErrorPago = API.mensajeDeError(err);
             } finally {
                 this.guardandoPago = false;
             }
@@ -601,15 +637,7 @@ function pedidosApp() {
                     }))
                 };
 
-                const res = await fetch(`${CONFIG.API_BASE_URL}/pedidos/${this.pedidoSeleccionado.pedido_id}/ajustar`, {
-                    method: 'PUT',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Error al ajustar el pedido');
-
+                const data = await API.put('/pedidos/' + this.pedidoSeleccionado.pedido_id + '/ajustar', payload);
                 this.mensajeAlerta = data.message;
                 const advertencias = data.advertencias || [];
 
@@ -628,7 +656,7 @@ function pedidosApp() {
 
                 await this.cargarPedidos();
             } catch (err) {
-                this.mensajeErrorModal = err.message;
+                this.mensajeErrorModal = API.mensajeDeError(err);
             } finally {
                 this.guardando = false;
             }
