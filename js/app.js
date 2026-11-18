@@ -218,13 +218,7 @@
       if (res.status === 304 && opciones.etag && cacheEtag.has(url)) {
         return cacheEtag.get(url).data;
       }
-      if ((res.status === 401 || res.status === 403) && !opciones.public) {
-        var mensaje = res.status === 401
-          ? 'Tu sesión expiró. Ingresá nuevamente.'
-          : 'No tenés permiso para realizar esta acción.';
-        irALogin(mensaje);
-        throw new ApiError(res.status, mensaje);
-      }
+      validarRespuestaProtegida(res, opciones);
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok) {
           var detalle = (data && (data.detail || data.message)) ||
@@ -255,6 +249,18 @@
     return apiFetch(path, Object.assign({}, opciones, { method: 'PUT', body: body }));
   }
 
+  // 401/403 en cualquier petición protegida (JSON, FormData o descarga) debe
+  // terminar siempre en el mismo re-login limpio.
+  function validarRespuestaProtegida(res, opciones) {
+    if ((res.status === 401 || res.status === 403) && !(opciones && opciones.public)) {
+      var mensaje = res.status === 401
+        ? 'Tu sesión expiró. Ingresá nuevamente.'
+        : 'No tenés permiso para realizar esta acción.';
+      irALogin(mensaje);
+      throw new ApiError(res.status, mensaje);
+    }
+  }
+
   // Requests con FormData (importaciones de Excel/PDF): el navegador pone el
   // Content-Type con el boundary correcto, así que no se fuerza JSON.
   function enviarFormulario(path, formData, opciones) {
@@ -270,6 +276,7 @@
       signal: opciones.signal || null,
       cache: 'no-store'
     }).then(function (res) {
+      validarRespuestaProtegida(res, opciones);
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok) {
           var detalle = (data && (data.detail || data.message)) ||
