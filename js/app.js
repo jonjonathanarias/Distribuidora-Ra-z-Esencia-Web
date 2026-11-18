@@ -57,7 +57,12 @@
   var cacheEtag = new Map();
 
   function baseUrl() {
-    return (global.CONFIG && global.CONFIG.API_BASE_URL) || '';
+    var config = global.CONFIG;
+    // Compatibilidad con versiones anteriores de config.js que declaraban
+    // `const CONFIG`: ese enlace no era propiedad de window pero sí existe en
+    // el ámbito global de los scripts clásicos.
+    if (!config && typeof CONFIG !== 'undefined') config = CONFIG;
+    return (config && config.API_BASE_URL) || '';
   }
 
   function token() {
