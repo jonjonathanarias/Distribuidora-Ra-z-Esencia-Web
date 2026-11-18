@@ -12,7 +12,12 @@
 (function (global) {
   var config = global.CONFIG || {};
   if (!config.API_BASE_URL) {
-    config.API_BASE_URL = global.API_BASE_URL || 'http://127.0.0.1:8000';
+    // Desarrollo local (uvicorn en 127.0.0.1:8000): descomentar esta línea
+    // y comentar la de Docker de abajo para volver al entorno de desarrollo.
+    // config.API_BASE_URL = global.API_BASE_URL || 'http://127.0.0.1:8000';
+
+    // Docker (nginx + HTTPS): activo por defecto.
+    config.API_BASE_URL = global.API_BASE_URL || 'https://localhost';
   }
   global.CONFIG = config;
 })(window);
