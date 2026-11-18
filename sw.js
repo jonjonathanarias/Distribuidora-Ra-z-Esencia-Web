@@ -5,13 +5,13 @@
  * estáticos del mismo origen (HTML, CSS, JS, iconos y el manifest). Cualquier
  * petición cruzada —la API en otro origin— se deja pasar sin interceptar.
  */
-var CACHE = 'raiz-esencia-shell-v5';
+var CACHE = 'raiz-esencia-shell-v6';
 var SHELL = [
   './',
   './index.html',
-  './css/style.css?v=5',
-  './js/config.js?v=5',
-  './js/app.js?v=5',
+  './css/style.css?v=6',
+  './js/config.js?v=6',
+  './js/app.js?v=6',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'

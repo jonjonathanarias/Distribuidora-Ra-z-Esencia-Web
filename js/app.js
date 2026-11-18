@@ -361,6 +361,7 @@
       signal: opciones.signal || null,
       cache: 'no-store'
     }).then(function (res) {
+      validarRespuestaProtegida(res, opciones);
       if (!res.ok) throw new ApiError(res.status, 'No se pudo descargar el archivo.');
       return res.blob();
     }).then(function (blob) {
